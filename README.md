@@ -28,7 +28,8 @@ Forecasting demand, measuring supply security, stress-testing the grid and sizin
 
 ## Interactive dashboard
 
-Open `index.html` in any browser. It is a single self-contained file with no server and no Power BI: a themed control-room dashboard with live controls for forecast scenarios, supply-security weights, a drought and import-loss stress simulator, and a capacity-gap calculator. Live version: https://samolart.github.io/kenya-electricity-outlook/ (served by GitHub Pages from the repository root).
+Open `index.html` in any browser. It is a single self-contained file with no server and no Power BI: a themed control-room dashboard with live controls for forecast scenarios, supply-security weights, a drought and import-loss stress simulator, and a capacity-gap calculator.
+**Explore the interactive dashboard here:** [Kenya Electricity Outlook Live Dashboard](https://samolart.github.io/kenya-electricity-outlook/#overview)
 
 ![Dashboard](docs/dashboard_preview.png)
 

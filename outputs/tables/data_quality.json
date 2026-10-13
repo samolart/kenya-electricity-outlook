@@ -1,0 +1,30 @@
+{
+  "kenya_years": [
+    2000,
+    2025,
+    26
+  ],
+  "countries": [
+    "Burundi",
+    "DR Congo",
+    "Ethiopia",
+    "Kenya",
+    "Mozambique",
+    "Rwanda",
+    "Sudan",
+    "Tanzania",
+    "Uganda",
+    "Zambia"
+  ],
+  "max_abs_gen_diff_pct": 0.05698005698007158,
+  "max_abs_demand_diff_pct": 0.04492939666238538,
+  "max_abs_sources_vs_generation_pct": 0.0071184510250565936,
+  "max_abs_gen_plus_imports_vs_demand_pct": 0.006421370320430775,
+  "missing_by_col_kenya": {
+    "gdp": 3,
+    "primary_energy_consumption": 2,
+    "energy_per_capita": 2,
+    "gdp_per_capita": 3
+  },
+  "gdp_last_year_kenya": 2022
+}

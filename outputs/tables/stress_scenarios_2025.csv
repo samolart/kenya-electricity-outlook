@@ -1,0 +1,8 @@
+,lost_twh,thermal_add_twh,unserved_twh,unserved_pct_demand,extra_co2_mt
+S0 Baseline 2025,0.0,0.0,0.0,0.0,0.0
+S1 Moderate drought (hydro -25%),0.733,0.733,0.0,0.0,0.482314
+S2 2000-type drought (hydro -42%),1.2314399999999999,1.2314399999999999,0.0,0.0,0.8102875199999999
+S3 Import interruption (Ethiopia link out),1.524,1.524,0.0,0.0,1.0027920000000001
+S4 Drought -25% + imports -50%,1.495,1.495,0.0,0.0,0.9837100000000001
+S5 2000-type drought + imports out,2.75544,1.84758,0.9078600000000001,5.829705259102293,1.21570764
+S6 Compound: S5 + wind -20% + geothermal -10%,3.86384,1.84758,2.01626,12.947152122262889,1.21570764

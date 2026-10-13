@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Interactive dashboard for Kenya's electricity outlook: demand forecast to 2035, supply-security index, drought and import stress test, and capacity-gap calculator.">
+<meta name="theme-color" content="#0d1113">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d1113'/%3E%3Cpath d='M18 5 9 18h6l-1 9 9-13h-6z' fill='%23ff7a3d'/%3E%3C/svg%3E">
+<style>:root{color-scheme:dark}html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Kenya Grid Outlook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout concept: a control-room console. Sticky tab bar, a headline hero with basalt contour lines and a geothermal glow,
+   then instrument panels. Colour carries meaning: one hue per energy source, ember reserved for Kenya and the active control. */
+:root{
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif; --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --ground:#0d1113; --surface:#141a1d; --surface-2:#1b2327; --line:#27323a; --line-2:#34424b;
+  --ink:#ece8e1; --ink-2:#b4bbbb; --muted:#808b8b;
+  --ember:#ff7a3d; --ember-ink:#1a0d06; --glow:rgba(255,122,61,.20); --glow-2:rgba(255,122,61,.07);
+  --c-geo:#ff7a3d; --c-hydro:#3b9bd6; --c-wind:#2fc2b2; --c-solar:#f2c14e; --c-bio:#9cc05b; --c-fossil:#8b9195; --c-import:#9d8ae8;
+  --good:#5fcf8b; --warn:#f2c14e; --bad:#ff5d5d; --peer:#6fb3e8;
+  --m1:#b7c3c7; --m2:#8fb5d9; --m3:#d7b98a; --m4:#c49ad1; --m5:#9bc9a6;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --ground:#e9eeee; --surface:#f6f8f8; --surface-2:#ffffff; --line:#cdd6d8; --line-2:#b5c1c4;
+  --ink:#10171a; --ink-2:#3c4a4f; --muted:#5f6e72;
+  --ember:#d9531a; --ember-ink:#ffffff; --glow:rgba(217,83,26,.16); --glow-2:rgba(217,83,26,.06);
+  --c-geo:#d9531a; --c-hydro:#1f78b4; --c-wind:#0f8f81; --c-solar:#c38f0a; --c-bio:#6a9a2b; --c-fossil:#6b7377; --c-import:#6a56c8;
+  --good:#1c8a4d; --warn:#b07a00; --bad:#c92d2d; --peer:#1f78b4;
+  --m1:#58676c; --m2:#2f6fa3; --m3:#9a7338; --m4:#8c4ea0; --m5:#3f8a57; color-scheme:light}}
+:root[data-theme="light"]{
+  --ground:#e9eeee; --surface:#f6f8f8; --surface-2:#ffffff; --line:#cdd6d8; --line-2:#b5c1c4;
+  --ink:#10171a; --ink-2:#3c4a4f; --muted:#5f6e72;
+  --ember:#d9531a; --ember-ink:#ffffff; --glow:rgba(217,83,26,.16); --glow-2:rgba(217,83,26,.06);
+  --c-geo:#d9531a; --c-hydro:#1f78b4; --c-wind:#0f8f81; --c-solar:#c38f0a; --c-bio:#6a9a2b; --c-fossil:#6b7377; --c-import:#6a56c8;
+  --good:#1c8a4d; --warn:#b07a00; --bad:#c92d2d; --peer:#1f78b4;
+  --m1:#58676c; --m2:#2f6fa3; --m3:#9a7338; --m4:#8c4ea0; --m5:#3f8a57; color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font:400 15px/1.55 var(--body);padding-inline:clamp(16px,3vw,36px);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin-inline:auto}
+h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;text-wrap:balance;letter-spacing:.005em}
+p{margin:0}
+.mono{font-family:var(--mono)} .cap{font:500 11px/1.2 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--ground) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin-inline:calc(-1*clamp(16px,3vw,36px));padding-inline:clamp(16px,3vw,36px)}
+.top .wrap{display:flex;align-items:center;gap:20px;min-height:56px;flex-wrap:wrap;padding-block:6px}
+.brand{display:flex;align-items:center;gap:10px;font:700 19px/1 var(--display);letter-spacing:.09em;text-transform:uppercase;white-space:nowrap}
+.brand svg{width:26px;height:26px;flex:none}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.tabs::-webkit-scrollbar{display:none}
+.tab{background:none;border:0;padding:10px 14px;cursor:pointer;font:500 12.5px/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+.tab:hover{color:var(--ink)} .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ember)}
+.iconbtn{background:var(--surface);border:1px solid var(--line);color:var(--ink-2);width:36px;height:36px;border-radius:6px;cursor:pointer;display:grid;place-items:center}
+.iconbtn:hover{border-color:var(--ember);color:var(--ink)}
+/* hero */
+.hero{position:relative;padding-block:clamp(36px,7vw,84px) clamp(26px,4vw,44px);overflow:hidden;isolation:isolate}
+.hero::before{content:"";position:absolute;inset:0;z-index:-2;background:radial-gradient(70% 90% at 92% 105%,var(--glow),transparent 62%),radial-gradient(40% 50% at 8% -10%,var(--glow-2),transparent 70%)}
+.contours{position:absolute;right:-6%;top:-12%;width:min(760px,95%);height:150%;z-index:-1;opacity:.75;pointer-events:none}
+.hero h1{font-size:clamp(34px,5.4vw,72px);line-height:.98;text-transform:uppercase;font-weight:700;max-width:20ch;letter-spacing:.01em}
+.hero h1 em{font-style:normal;color:var(--ember)}
+.hero .lede{max-width:56ch;margin-top:20px;color:var(--ink-2);font-size:clamp(15px,1.5vw,17px)}
+.hero .meta{display:flex;gap:10px 22px;flex-wrap:wrap;margin-top:22px}
+.chip{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line-2);color:var(--ink-2);padding:7px 10px;border-radius:99px;white-space:nowrap}
+/* panels */
+.view{display:none;padding-block:6px 56px} .view.on{display:block}
+.grid{display:grid;gap:16px}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))} .g2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .g32{grid-template-columns:minmax(0,1.9fr) minmax(0,1fr)} .g23{grid-template-columns:minmax(0,1fr) minmax(0,1.7fr)}
+@media (max-width:980px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g2,.g32,.g23{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){.g4{grid-template-columns:minmax(0,1fr)}}
+.panel{background:linear-gradient(180deg,var(--surface-2) -40%,var(--surface) 40%);border:1px solid var(--line);border-radius:6px;padding:18px 18px 16px;min-width:0}
+.panel>header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.panel h2{font-size:22px;text-transform:uppercase;letter-spacing:.04em}
+.panel h2::before{content:"";display:inline-block;width:10px;height:10px;background:var(--ember);margin-right:10px;transform:rotate(45deg) translateY(-1px)}
+.panel .sub{color:var(--muted);font-size:13px;margin-top:4px;max-width:62ch}
+.section-title{font-size:clamp(26px,3.4vw,38px);text-transform:uppercase;margin:34px 0 6px}
+.section-lede{color:var(--ink-2);max-width:68ch;margin-bottom:18px}
+.kpi{position:relative;padding:16px 16px 12px;background:var(--surface);border:1px solid var(--line);border-radius:6px;min-width:0;overflow:hidden}
+.kpi .val{font:700 clamp(40px,4.6vw,56px)/1 var(--display);margin:10px 0 2px;letter-spacing:.01em}
+.kpi .val small{font:600 .42em/1 var(--display);color:var(--ink-2);margin-left:6px;letter-spacing:.06em}
+.kpi .note{color:var(--ink-2);font-size:13px;min-height:2.6em}
+.kpi svg{display:block;width:100%;height:44px;margin-top:6px}
+.pill{display:inline-flex;align-items:center;gap:6px;font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:5px 8px;border-radius:99px;border:1px solid currentColor}
+.pill.good{color:var(--good)}.pill.warn{color:var(--warn)}.pill.bad{color:var(--bad)}
+.chart{width:100%;position:relative}
+.chart svg{display:block;overflow:visible}
+.grid-l{stroke:var(--line);stroke-width:1}.tick{fill:var(--muted);font:11px var(--mono)}.axis{stroke:var(--line-2)}
+.xhair{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 3}
+.lbl{fill:var(--ink-2);font:500 11.5px var(--mono)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font:12px var(--mono);color:var(--ink-2)}
+.legend i{display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:2px;vertical-align:-1px}
+.legend button{background:none;border:0;padding:2px 0;cursor:pointer;display:inline-flex;align-items:center;color:inherit;font:inherit}
+.legend button[aria-pressed="false"]{opacity:.4}
+/* controls */
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:6px;overflow:hidden;flex-wrap:wrap}
+.seg button{background:transparent;border:0;border-right:1px solid var(--line-2);padding:8px 12px;cursor:pointer;font:500 12px/1 var(--mono);letter-spacing:.06em;color:var(--ink-2);text-transform:uppercase}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ember);color:var(--ember-ink)}
+.seg button:hover:not([aria-pressed="true"]){color:var(--ink);background:var(--surface-2)}
+.ctl{display:grid;gap:4px;margin-bottom:14px}
+.ctl label{display:flex;justify-content:space-between;gap:10px;font:500 12px/1.3 var(--mono);letter-spacing:.04em;color:var(--ink-2)}
+.ctl label b{color:var(--ink);font-weight:500}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;cursor:pointer;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:4px;background:var(--line-2);border-radius:2px}
+input[type=range]::-moz-range-track{height:4px;background:var(--line-2);border-radius:2px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--ember);border:2px solid var(--ground);margin-top:-6px;box-shadow:0 0 0 1px var(--ember)}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--ember);border:2px solid var(--ground)}
+select{background:var(--surface-2);border:1px solid var(--line-2);border-radius:6px;padding:7px 10px;font:500 12px var(--mono);color:var(--ink)}
+.preset{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.preset button{background:var(--surface-2);border:1px solid var(--line-2);color:var(--ink-2);border-radius:6px;padding:8px 10px;cursor:pointer;font:500 11.5px/1.2 var(--mono);text-align:left}
+.preset button:hover{border-color:var(--ember);color:var(--ink)} .preset button[aria-pressed="true"]{border-color:var(--ember);color:var(--ink);background:var(--glow-2)}
+/* bar rows */
+.rows{display:grid;gap:9px}
+.row{display:grid;grid-template-columns:minmax(86px,128px) minmax(0,1fr) 54px;gap:10px;align-items:center;font-size:13px}
+.row .nm{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .bar{height:12px;background:var(--surface-2);border-radius:2px;position:relative;overflow:hidden}
+.row .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:0 2px 2px 0;transition:width .45s cubic-bezier(.2,.7,.2,1)}
+.row .v{font:500 12.5px var(--mono);text-align:right}
+.row.hl .nm{color:var(--ink);font-weight:600}
+/* stat strip */
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-block:14px}
+.strip>div{background:var(--surface);padding:12px 14px}
+.strip .big{font:700 34px/1.05 var(--display);margin-top:6px}
+.strip .big small{font:600 15px var(--display);color:var(--ink-2);margin-left:4px}
+.tablewrap{overflow-x:auto;margin-top:6px}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:560px}
+th{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right;padding:8px 10px;border-bottom:1px solid var(--line-2);white-space:nowrap}
+td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+tr.k td{color:var(--ink);font-weight:600;background:var(--glow-2)} tr.k td:first-child{color:var(--ember)}
+.callout{border:1px solid var(--line-2);border-left:3px solid var(--warn);background:var(--surface);border-radius:4px;padding:12px 14px;color:var(--ink-2);font-size:13.5px;margin-top:14px}
+.callout b{color:var(--ink)}
+ul.clean{margin:8px 0 0;padding-left:18px;color:var(--ink-2)} ul.clean li{margin:5px 0}
+a{color:var(--ember);text-underline-offset:3px}
+#tip{position:fixed;z-index:50;display:none;pointer-events:none;background:var(--surface-2);border:1px solid var(--line-2);border-radius:6px;padding:9px 11px;font:12px/1.5 var(--mono);color:var(--ink);box-shadow:0 8px 28px rgba(0,0,0,.35);max-width:260px}
+#tip b{font-weight:500;color:var(--ink)} #tip .r{display:flex;justify-content:space-between;gap:14px;color:var(--ink-2)} #tip .r i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+footer{border-top:1px solid var(--line);padding-block:22px 40px;color:var(--muted);font-size:12.5px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media (max-width:760px){.tabs{order:3;flex:1 0 100%}.top .wrap{gap:2px 12px;padding-block:8px 0}.brand{flex:1}.tab{padding:11px 12px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+
+<div class="app">
+<header class="top"><div class="wrap">
+  <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="none" stroke="var(--line-2)" stroke-width="1.5"/><circle cx="16" cy="16" r="9" fill="none" stroke="var(--c-geo)" stroke-width="1.5" opacity=".6"/><path d="M17.5 7 11 17.5h4.6L14.5 25 21 14.5h-4.6z" fill="var(--ember)"/></svg>Kenya Grid Outlook</div>
+  <nav class="tabs" role="tablist" aria-label="Dashboard sections">
+    <button class="tab" role="tab" data-view="overview">Overview</button><button class="tab" role="tab" data-view="forecast">Forecast</button><button class="tab" role="tab" data-view="security">Security</button><button class="tab" role="tab" data-view="stress">Stress test</button><button class="tab" role="tab" data-view="capacity">Capacity</button><button class="tab" role="tab" data-view="about">About</button>
+  </nav>
+  <button class="iconbtn" id="themeBtn" aria-label="Switch colour theme" title="Switch colour theme"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></button>
+</div></header>
+
+<div class="wrap">
+<!-- ============ OVERVIEW ============ -->
+<section class="view" id="v-overview">
+  <div class="hero">
+    <svg class="contours" id="contours" viewBox="0 0 600 600" aria-hidden="true"></svg>
+    <div class="cap">Kenya · electricity system · 2000 to 2035</div>
+    <h1 style="margin-top:14px">Demand has more than tripled. The next decade needs <em>twice the build pace.</em></h1>
+    <p class="lede" id="heroLede"></p>
+    <div class="meta"><span class="chip">Ember + Our World in Data</span><span class="chip">10-country panel</span><span class="chip">Backtested forecasts</span><span class="chip">Live stress simulator</span></div>
+  </div>
+  <div class="grid g4" id="kpis"></div>
+  <div class="grid g32" style="margin-top:16px">
+    <div class="panel"><header><div><h2>Where the power comes from</h2><p class="sub">Annual supply by source, with demand as the dashed line. Hover to read a year.</p></div></header>
+      <div class="chart" id="mixChart" data-label="Stacked area chart of Kenya electricity supply by source, 2000 to 2025"></div><div class="legend" id="mixLegend"></div></div>
+    <div class="panel"><header><div><h2>Who supplied 2025</h2><p class="sub">Share of the 15.6 TWh of demand met by each source.</p></div></header><div class="rows" id="mixShare"></div>
+      <div class="callout"><b>Diversified, with one new dependency.</b> No single source supplies more than about two-fifths of demand. Imports went from almost nothing to about one unit in ten.</div></div>
+  </div>
+  <h2 class="section-title">Regional context</h2>
+  <p class="section-lede">Kenya against nine neighbours on size, use per person and reliance on hydro, fossil fuel and imports in 2024.</p>
+  <div class="grid g32">
+    <div class="panel"><header><div><h2>Benchmark, 2024</h2></div></header><div class="tablewrap"><table id="bmTable"></table></div></div>
+    <div class="panel"><header><div><h2>Income and electricity use</h2><p class="sub">Per person, 2022, log scales.</p></div></header><div class="chart" id="scatter" data-label="Scatter of electricity demand per person against GDP per person"></div></div>
+  </div>
+</section>
+
+<!-- ============ FORECAST ============ -->
+<section class="view" id="v-forecast">
+  <h2 class="section-title">Demand forecast to 2035</h2>
+  <p class="section-lede">An equal-weight ensemble of three simple models, tested 42 times on data it had not seen. The bands come from the ensemble's own backtest errors.</p>
+  <div class="grid g32">
+    <div class="panel"><header><div><h2>Demand path</h2><p class="sub">TWh per year. Pick a scenario to highlight.</p></div>
+      <div class="seg" id="scenSeg" role="group" aria-label="Demand scenario"><button data-s="Low" aria-pressed="false">Low</button><button data-s="Base" aria-pressed="true">Base</button><button data-s="High" aria-pressed="false">High</button></div></header>
+      <div class="chart" id="fanChart" data-label="Line chart of Kenya electricity demand history and forecast with prediction bands"></div>
+      <div class="legend" id="fanLegend"></div></div>
+    <div class="panel"><header><div><h2>How accurate?</h2><p class="sub">Mean absolute % error across rolling backtests.</p></div>
+      <div class="seg" id="hSeg" role="group" aria-label="Forecast horizon"><button data-h="0" aria-pressed="true">1 yr</button><button data-h="1" aria-pressed="false">2 yr</button><button data-h="2" aria-pressed="false">3 yr</button></div></header>
+      <div class="rows" id="btRows"></div>
+      <div class="callout"><b>Simple beat clever.</b> Damped-trend smoothing slows growth too early, so it was dropped from the ensemble after the first backtest. That choice used the same data, so ensemble accuracy is a little flattering.</div></div>
+  </div>
+  <div class="strip" id="fcStrip"></div>
+  <div class="panel"><header><div><h2>Forecast table</h2><p class="sub">TWh per year</p></div></header><div class="tablewrap"><table id="fcTable"></table></div></div>
+</section>
+
+<!-- ============ SECURITY ============ -->
+<section class="view" id="v-security">
+  <h2 class="section-title">Supply security</h2>
+  <p class="section-lede">Four structural pillars scored 0 to 100, where 100 is most secure: imports, source concentration, fuel exposure and hydrology risk. Change the weights and the ranking updates.</p>
+  <div class="grid g23">
+    <div class="panel"><header><div><h2>Weights</h2><p class="sub">Drag to decide what matters most.</p></div></header>
+      <div class="preset" id="wPresets"></div><div id="wCtl"></div>
+      <div class="strip" style="grid-template-columns:1fr 1fr;margin-top:6px"><div><div class="cap">Kenya rank</div><div class="big num" id="kRank">1<small>of 10</small></div></div><div><div class="cap">Kenya score</div><div class="big num" id="kScore">87</div></div></div></div>
+    <div class="panel"><header><div><h2>Ranking</h2><p class="sub">Index score for the selected year.</p></div>
+      <div class="ctl" style="margin:0;min-width:200px"><label for="secYear"><span>Year</span><b id="secYearV">2024</b></label><input type="range" id="secYear" min="2006" max="2024" step="1" value="2024"></div></header>
+      <div class="rows" id="rankRows"></div></div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="panel"><header><div><h2>Index over time</h2><p class="sub">Kenya in ember. Compare with one neighbour.</p></div><select id="peerSel" aria-label="Compare Kenya with"></select></header>
+      <div class="chart" id="trajChart" data-label="Line chart of supply security index by country 2006 to 2025"></div></div>
+    <div class="panel"><header><div><h2>Pillar shape</h2><p class="sub">Selected year. Further from the centre is more secure.</p></div></header>
+      <div class="chart" id="radar" data-label="Radar chart of the four security pillars for Kenya and a peer"></div><div class="legend" id="radarLegend"></div></div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="panel"><header><div><h2>Kenya's pillars, 2015 to 2025</h2><p class="sub">Imports are the only pillar that got worse.</p></div></header><div class="rows" id="pillarRows"></div></div>
+    <div class="panel"><header><div><h2>Is the rank just the weights?</h2><p class="sub">Kenya's 2024 rank across 10,000 random weightings.</p></div></header><div class="chart" id="rankHist" data-label="Histogram of Kenya rank under random weights"></div>
+      <div class="callout"><b>Robust, not guaranteed.</b> Kenya is first in about half of random weightings and median first. Put 70% on imports and it drops to seventh.</div></div>
+  </div>
+</section>
+
+<!-- ============ STRESS ============ -->
+<section class="view" id="v-stress">
+  <h2 class="section-title">Stress test</h2>
+  <p class="section-lede">Take Kenya's 2025 supply and remove energy. Thermal plant fills what it can; anything left over is unserved. The test uses annual energy, so real shortfalls would show up sooner and at peak hours.</p>
+  <div class="grid g23">
+    <div class="panel"><header><div><h2>Shocks</h2><p class="sub">Start from a preset, then adjust.</p></div></header>
+      <div class="preset" id="sPresets"></div><div id="sCtl"></div></div>
+    <div class="panel"><header><div><h2>Result</h2><p class="sub">TWh per year, 2025 supply stack.</p></div><span class="pill good" id="sPill">Covered</span></header>
+      <div class="grid g2" style="gap:6px;align-items:center"><div class="chart" id="gauge" data-label="Gauge of unserved energy as percent of demand"></div><div class="chart" id="stressBars" data-label="Bars of lost supply and replacement"></div></div>
+      <div class="strip" id="sStrip"></div></div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="panel"><header><div><h2>Monte Carlo on real hydrology</h2><p class="sub">20,000 draws of the hydro and geothermal swings seen between 2000 and 2025.</p></div></header>
+      <div class="strip" id="mcStrip" style="grid-template-columns:1fr 1fr"></div>
+      <div class="chart" id="mcHist" data-label="Histogram of unserved energy when imports are interrupted"></div>
+      <p class="sub" style="margin-top:6px">Distribution of unserved energy, % of demand, when imports are interrupted. The first bar means thermal covered everything.</p></div>
+    <div class="panel"><header><div><h2>Reading the result</h2></div></header>
+      <ul class="clean"><li>Thermal fleet: <b class="mono" id="thFleet"></b>. Headroom is what is left after 2025 output.</li><li>A drought like 2000 (hydro 42% below trend) or losing all imports is covered on its own.</li><li>Both together overwhelm the thermal reserve. Its availability decides how bad it gets, so move the slider.</li><li>Shortfall probability is conditional on imports being out. The model does not say how likely an outage is.</li></ul>
+      <div class="callout"><b>Lower bound on risk.</b> No peak demand, seasonality, transmission limits or fuel logistics. Treat the numbers as the best case.</div></div>
+  </div>
+</section>
+
+<!-- ============ CAPACITY ============ -->
+<section class="view" id="v-capacity">
+  <h2 class="section-title">Capacity gap</h2>
+  <p class="section-lede">How much new generation keeps supply level with demand, if imports and thermal output stay at 2025 volumes. Choose a demand path, a year and a technology mix.</p>
+  <div class="grid g23">
+    <div class="panel"><header><div><h2>Plan</h2></div></header>
+      <div class="ctl"><label><span>Demand path</span></label><div class="seg" id="capSeg" role="group" aria-label="Demand path"><button data-s="Low" aria-pressed="false">Low</button><button data-s="Base" aria-pressed="true">Base</button><button data-s="High" aria-pressed="false">High</button></div></div>
+      <div id="capCtl"></div>
+      <label class="mono" style="display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--ink-2);cursor:pointer"><input type="checkbox" id="phase" style="margin-top:3px"><span>Also phase imports and thermal output down to 5% of demand each</span></label></div>
+    <div class="panel"><header><div><h2>What it takes</h2></div></header>
+      <div class="strip" id="capStrip"></div>
+      <div class="chart" id="capLine" data-label="Line chart of cumulative new supply needed against historical build pace"></div><div class="legend" id="capLegend"></div>
+      <div class="rows" id="capRows" style="margin-top:14px"></div></div>
+  </div>
+  <div class="callout" style="margin-top:16px"><b>Indicative gigawatts.</b> Energy is converted to capacity with the capacity factors above. Reserve margins, losses, curtailment and peak needs are left out, so the terawatt-hour gap is the sturdier number.</div>
+</section>
+
+<!-- ============ ABOUT ============ -->
+<section class="view" id="v-about">
+  <h2 class="section-title">About this project</h2>
+  <div class="grid g2">
+    <div class="panel"><header><div><h2>Data</h2></div></header>
+      <ul class="clean"><li><b>Ember</b> yearly electricity data: generation by source, demand, net imports, emissions. Kenya 2000 to 2025.</li><li><b>Our World in Data</b> energy dataset: population and GDP.</li><li>Ten countries: Kenya, Uganda, Tanzania, Ethiopia, Rwanda, Burundi, Zambia, Mozambique, DR Congo, Sudan.</li><li>Source totals reconcile to demand within 0.01%.</li></ul></div>
+    <div class="panel"><header><div><h2>Methods</h2></div></header>
+      <ul class="clean"><li>Five forecasting models built from scratch; rolling-origin backtests; intervals from backtest errors.</li><li>Security index: four pillars, winsorised and scaled 0 to 100, equal weight by default.</li><li>Stress tests: scenario arithmetic plus resampling of observed hydrology.</li><li>Capacity: gap in TWh converted to GW through capacity factors.</li></ul></div>
+    <div class="panel"><header><div><h2>Limits</h2></div></header>
+      <ul class="clean"><li>Only 26 annual points for Kenya; bands beyond three years rest on an assumption.</li><li>Annual energy, not peak power. No prices or costs.</li><li>Ember reports no geothermal capacity for Kenya, so reserve margins are not computed.</li><li>Thermal availability and new-plant capacity factors are assumptions.</li></ul></div>
+    <div class="panel"><header><div><h2>Reproduce</h2></div></header>
+      <p class="sub" style="max-width:none">Every number here is generated by the Python pipeline in the project repository. The final report and technical report explain each step and include the code.</p>
+      <p class="mono" style="margin-top:12px;font-size:12.5px;color:var(--ink-2)">bash run_all.sh &nbsp;→&nbsp; data, tables, figures, reports, dashboard</p></div>
+  </div>
+</section>
+
+<footer><span>Kenya Grid Outlook. Data: Ember and Our World in Data, CC BY 4.0.</span><span>Annual energy analysis; not an operational forecast.</span></footer>
+</div></div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const D={"years":[2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025],"kenya":{"demand":[4.51,4.98,5.37,5.67,6.32,6.7,7.47,6.63,6.13,6.56,7.16,7.83,8.18,8.08,9.33,9.82,9.73,11.05,11.39,11.76,11.8,12.65,13.26,13.69,14.75,15.573],"generation":[4.31,4.81,5.15,5.48,6.16,6.7,7.51,6.67,6.15,6.55,7.16,7.83,8.17,8.08,9.2,9.81,9.68,10.83,11.3,11.56,11.68,12.38,12.96,12.8,13.26,14.048],"geo":[0.43,0.48,0.39,0.79,1.03,1.0,1.01,1.02,1.18,1.34,1.45,1.5,1.58,1.91,3.21,4.48,4.69,4.76,5.13,5.24,5.06,5.04,5.52,6.03,6.0,6.442],"hydro":[1.31,2.38,3.09,3.23,2.84,3.0,3.24,3.45,2.82,2.15,3.39,3.42,4.26,3.91,3.28,3.75,3.31,3.17,3.99,3.21,4.23,3.67,3.04,2.67,3.1,2.932],"wind":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.01,0.02,0.02,0.01,0.01,0.02,0.06,0.06,0.06,0.38,1.56,1.33,1.99,2.14,2.01,2.17,2.321],"solar":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.01,0.01,0.03,0.05,0.05,0.06,0.07,0.09,0.09,0.09,0.17,0.42,0.58,0.66,0.673],"bio":[0.0,0.0,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.52,0.7,0.16,0.15,0.22,0.25,0.26,0.2,0.2,0.283],"fossil":[2.57,1.95,1.2,0.99,1.82,2.23,2.79,1.73,1.68,2.58,1.83,2.41,1.84,1.75,2.17,1.0,1.04,2.07,1.55,1.31,0.75,1.26,1.58,1.31,1.13,1.398],"imports":[0.2,0.17,0.22,0.19,0.16,0.0,-0.04,-0.04,-0.02,0.01,0.0,0.0,0.01,0.0,0.13,0.01,0.05,0.22,0.09,0.2,0.12,0.27,0.3,0.89,1.49,1.524],"intensity":[403.2,282.3,190.1,156.8,228.1,250.4,273.2,203.9,214.3,290.2,201.3,233.2,180.4,175.6,188.2,104.0,109.0,163.6,119.5,102.7,72.7,95.9,109.3,97.0,85.8,95.9],"perCapita":[147.2,157.5,164.6,168.5,182.1,187.2,202.4,174.3,156.4,162.3,172.1,183.1,186.4,179.6,202.6,208.5,202.1,224.6,226.9,229.7,226.0,237.7,244.4,247.4,261.4,270.7]},"forecast":{"years":[2026,2027,2028,2029,2030,2031,2032,2033,2034,2035],"ens":[16.195,16.984,17.813,18.681,19.593,20.548,21.55,22.601,23.703,24.859],"lo80":[15.365,15.767,16.262,16.816,17.418,18.064,18.75,19.477,20.243,21.05],"hi80":[17.069,18.296,19.512,20.754,22.038,23.374,24.768,26.227,27.755,29.358],"lo95":[14.943,15.158,15.496,15.905,16.367,16.873,17.418,18.001,18.62,19.275],"hi95":[17.551,19.031,20.476,21.943,23.454,25.024,26.662,28.376,30.173,32.061],"models":{"Random walk + drift":[16.364,17.196,18.07,18.988,19.953,20.967,22.033,23.152,24.329,25.565],"Log-linear trend":[15.891,16.636,17.416,18.233,19.088,19.983,20.92,21.901,22.928,24.004],"ARIMA(1,1,0) + drift":[16.333,17.127,17.959,18.832,19.747,20.706,21.713,22.768,23.874,25.034],"ETS damped trend":[15.961,16.341,16.71,17.067,17.412,17.746,18.068,18.378,18.677,18.965],"Recent drift (8y)":[16.255,16.968,17.711,18.487,19.298,20.143,21.026,21.947,22.909,23.913]}},"backtest":[{"model":"ARIMA(1,1,0)+drift","h":[3.58,4.82,3.5]},{"model":"Drift (RW+drift)","h":[3.39,4.31,3.03]},{"model":"ETS damped trend","h":[4.42,6.33,9.04]},{"model":"Ensemble (mean)","h":[2.9,3.93,3.34]},{"model":"GDP-driver (conditional)","h":[3.4,4.58,4.12]},{"model":"Log-linear trend","h":[3.17,3.59,3.95]},{"model":"Recent drift (8y)","h":[3.7,4.94,5.03]}],"cagr":0.05081878936589668,"cagr1525":0.047191430484486485,"cagr2025":0.057056145018752114,"coverage":{"1":{"n":15,"cover80":0.8666666666666667,"cover95":0.8666666666666667,"empirical_rmse":0.0410464738533328,"assumed_sd":0.0410464738533328},"2":{"n":14,"cover80":0.9285714285714286,"cover95":1.0,"empirical_rmse":0.047407188085222894,"assumed_sd":0.058048480010975886},"3":{"n":13,"cover80":1.0,"cover95":1.0,"empirical_rmse":0.03849988405371462,"assumed_sd":0.07109457818551988}},"benchmark":[{"country":"Burundi","demand":0.6,"perCapita":41.0,"hydro":73.0,"fossil":24.0,"imports":14.0,"intensity":184.0,"cagr":7.8},{"country":"DR Congo","demand":17.4,"perCapita":159.0,"hydro":84.0,"fossil":0.0,"imports":8.3,"intensity":28.0,"cagr":5.9},{"country":"Ethiopia","demand":23.4,"perCapita":178.0,"hydro":97.0,"fossil":0.0,"imports":0.0,"intensity":23.0,"cagr":10.4},{"country":"Kenya","demand":14.8,"perCapita":261.0,"hydro":23.0,"fossil":9.0,"imports":10.1,"intensity":86.0,"cagr":4.7},{"country":"Mozambique","demand":16.5,"perCapita":476.0,"hydro":82.0,"fossil":17.0,"imports":0.0,"intensity":129.0,"cagr":1.4},{"country":"Rwanda","demand":1.2,"perCapita":86.0,"hydro":46.0,"fossil":50.0,"imports":7.4,"intensity":362.0,"cagr":9.3},{"country":"Sudan","demand":15.6,"perCapita":309.0,"hydro":78.0,"fossil":20.0,"imports":5.1,"intensity":154.0,"cagr":2.8},{"country":"Tanzania","demand":9.0,"perCapita":132.0,"hydro":32.0,"fossil":67.0,"imports":2.1,"intensity":344.0,"cagr":3.6},{"country":"Uganda","demand":5.4,"perCapita":107.0,"hydro":86.0,"fossil":3.0,"imports":0.0,"intensity":59.0,"cagr":5.7},{"country":"Zambia","demand":16.6,"perCapita":779.0,"hydro":86.0,"fossil":13.0,"imports":0.0,"intensity":126.0,"cagr":2.3}],"scatter":[{"country":"Burundi","gdp":689.0,"dem":37.0},{"country":"DR Congo","gdp":892.0,"dem":163.0},{"country":"Ethiopia","gdp":2153.0,"dem":125.0},{"country":"Kenya","gdp":3509.0,"dem":244.0},{"country":"Mozambique","gdp":963.0,"dem":501.0},{"country":"Rwanda","gdp":2085.0,"dem":78.0},{"country":"Tanzania","gdp":3063.0,"dem":151.0},{"country":"Uganda","gdp":2156.0,"dem":113.0},{"country":"Zambia","gdp":3398.0,"dem":815.0}],"security":{"years":[2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025],"data":{"Burundi":{"s":[[0.0,0.0,100.0,34.05],[0.0,0.0,100.0,10.7],[0.0,0.0,100.0,15.54],[0.0,0.0,100.0,15.85],[0.0,31.68,81.23,29.78],[0.0,34.79,89.99,43.78],[0.0,17.89,100.0,44.21],[0.0,44.22,82.34,53.08],[3.11,52.94,74.98,56.78],[0.0,52.94,74.98,80.99],[0.0,54.75,83.32,85.76],[29.3,69.07,62.47,64.98],[35.41,65.1,57.11,58.89],[40.68,66.98,53.81,65.5],[43.13,59.29,63.48,59.74],[40.68,66.98,53.81,63.32],[40.68,66.98,53.81,63.32],[51.56,57.36,63.97,41.36],[59.21,58.15,63.24,40.51],null],"raw":[[47.059,1.0,0.0,14.554],[40.0,1.0,0.0,18.523],[42.105,1.0,0.0,17.7],[42.857,1.0,0.0,17.648],[38.462,0.781,12.5,15.279],[40.0,0.76,6.667,12.9],[40.0,0.876,0.0,12.827],[37.037,0.696,11.765,11.318],[33.333,0.636,16.667,10.689],[35.714,0.636,16.667,6.571],[41.935,0.623,11.111,5.761],[24.324,0.526,25.0,9.294],[22.222,0.553,28.571,10.33],[20.408,0.54,30.769,9.207],[19.565,0.592,24.324,10.186],[20.408,0.54,30.769,9.577],[20.408,0.54,30.769,9.577],[16.667,0.606,24.0,13.311],[14.035,0.6,24.49,13.455],null]},"DR Congo":{"s":[[100.0,1.64,99.0,86.87],[100.0,3.03,98.27,89.87],[100.0,3.55,98.0,87.37],[100.0,3.04,98.27,88.3],[100.0,3.03,98.27,87.63],[100.0,3.03,98.27,87.22],[79.19,0.09,99.8,100.0],[80.71,0.06,99.82,95.47],[68.3,0.04,99.83,92.7],[68.88,0.03,99.83,93.0],[78.79,0.02,99.83,97.11],[79.1,0.63,99.84,97.15],[81.04,0.54,99.86,91.95],[78.96,0.44,99.87,88.47],[75.69,0.64,99.88,95.51],[73.73,19.93,100.0,97.59],[76.77,34.61,100.0,96.84],[75.48,35.22,100.0,97.31],[75.89,38.69,100.0,96.27],null],"raw":[[0.0,0.987,0.667,5.572],[0.0,0.977,1.149,5.062],[0.0,0.974,1.332,5.487],[0.0,0.977,1.152,5.33],[0.0,0.977,1.149,5.443],[0.0,0.977,1.151,5.512],[7.16,0.997,0.133,3.271],[6.636,0.998,0.123,4.111],[10.907,0.998,0.114,4.582],[10.707,0.998,0.113,4.53],[7.297,0.998,0.111,3.831],[7.192,0.994,0.106,3.825],[6.524,0.994,0.096,4.709],[7.238,0.995,0.085,5.3],[8.364,0.994,0.08,4.103],[9.038,0.862,0.0,3.75],[7.993,0.761,0.0,3.876],[8.436,0.757,0.0,3.798],[8.295,0.733,0.0,3.975],null]},"Ethiopia":{"s":[[100.0,6.63,99.09,83.37],[100.0,6.4,98.25,81.7],[100.0,5.75,99.55,74.73],[100.0,9.94,97.51,84.21],[100.0,7.15,98.5,48.03],[100.0,6.06,98.82,41.73],[100.0,9.47,99.6,42.84],[100.0,12.95,99.83,43.96],[100.0,15.78,100.0,43.52],[100.0,20.82,100.0,47.0],[100.0,17.94,100.0,56.45],[100.0,11.89,100.0,55.44],[100.0,11.17,100.0,77.64],[100.0,16.11,99.9,88.0],[100.0,11.93,99.9,88.43],[100.0,14.98,100.0,84.84],[100.0,10.1,100.0,82.94],[100.0,9.9,100.0,80.82],[100.0,8.5,100.0,42.08],[100.0,9.7,100.0,31.78]],"raw":[[0.0,0.953,0.604,6.167],[0.0,0.954,1.166,6.451],[0.0,0.959,0.3,7.636],[0.0,0.93,1.657,6.025],[0.0,0.949,0.998,12.176],[0.0,0.956,0.789,13.248],[0.0,0.933,0.264,13.058],[0.0,0.909,0.115,12.869],[0.0,0.89,0.0,12.943],[0.0,0.856,0.0,12.352],[0.0,0.875,0.0,10.744],[0.0,0.917,0.0,10.916],[0.0,0.922,0.0,7.142],[0.0,0.888,0.065,5.379],[0.0,0.916,0.064,5.306],[0.0,0.895,0.0,5.918],[0.0,0.929,0.0,6.24],[0.0,0.93,0.0,6.601],[0.0,0.94,0.0,13.188],[0.0,0.932,0.0,14.939]]},"Kenya":{"s":[[100.0,95.29,44.23,35.35],[100.0,92.8,61.06,26.16],[100.0,98.01,58.99,35.6],[99.56,100.0,40.87,86.27],[100.0,96.94,61.63,49.6],[100.0,98.26,53.79,55.0],[99.64,92.78,66.19,41.91],[100.0,96.13,67.49,45.73],[95.95,100.0,64.59,62.88],[99.7,92.18,84.7,58.13],[98.51,92.36,83.87,65.96],[94.21,99.16,71.31,77.42],[97.7,94.58,79.41,85.6],[95.06,100.0,82.99,89.79],[97.04,96.72,90.36,77.57],[93.8,100.0,84.72,84.46],[93.42,100.0,81.7,91.62],[81.1,100.0,84.64,95.18],[70.64,100.0,87.21,91.42],[71.56,100.0,85.06,94.39]],"raw":[[0.0,0.346,37.15,14.333],[0.0,0.363,25.937,15.895],[0.0,0.328,27.317,14.291],[0.152,0.31,39.389,5.674],[0.0,0.335,25.559,11.909],[0.0,0.326,30.779,10.992],[0.122,0.363,22.521,13.217],[0.0,0.34,21.658,12.568],[1.393,0.307,23.587,9.651],[0.102,0.367,10.194,10.459],[0.514,0.366,10.744,9.128],[1.991,0.32,19.114,7.178],[0.79,0.351,13.717,5.788],[1.701,0.314,11.332,5.076],[1.017,0.336,6.421,7.153],[2.134,0.29,10.178,5.982],[2.262,0.28,12.191,4.764],[6.501,0.303,10.234,4.159],[10.102,0.296,8.522,4.799],[9.786,0.294,9.952,4.294]]},"Mozambique":{"s":[[100.0,0.1,99.79,47.67],[100.0,0.0,99.91,53.83],[100.0,0.0,99.9,52.14],[100.0,0.0,99.91,61.74],[100.0,0.05,99.82,60.86],[100.0,1.63,99.0,77.19],[100.0,1.83,98.9,66.91],[100.0,3.77,97.88,72.42],[100.0,3.57,97.99,72.94],[100.0,18.8,89.46,77.72],[100.0,42.5,74.05,80.29],[100.0,49.15,70.72,85.0],[100.0,45.61,72.67,84.42],[100.0,49.72,69.01,82.15],[100.0,42.63,75.22,83.4],[100.0,43.71,74.45,83.6],[100.0,42.39,75.52,87.27],[100.0,42.64,75.33,88.82],[100.0,43.04,75.12,93.49],null],"raw":[[0.0,0.997,0.137,12.238],[0.0,0.999,0.063,11.19],[0.0,0.999,0.067,11.478],[0.0,0.999,0.06,9.845],[0.0,0.998,0.12,9.995],[0.0,0.987,0.663,7.218],[0.0,0.985,0.735,8.966],[0.0,0.972,1.412,8.029],[0.0,0.974,1.341,7.941],[0.0,0.869,7.018,7.128],[0.0,0.707,17.285,6.691],[0.0,0.662,19.501,5.891],[0.0,0.686,18.203,5.988],[0.0,0.658,20.642,6.375],[0.0,0.706,16.509,6.163],[0.0,0.699,17.02,6.129],[0.0,0.708,16.309,5.503],[0.0,0.706,16.433,5.24],[0.0,0.704,16.574,4.447],null]},"Rwanda":{"s":[[47.15,72.7,22.16,50.81],[29.54,72.68,21.94,55.03],[37.16,72.01,32.7,43.6],[52.87,72.72,27.36,51.18],[35.41,75.41,8.85,57.77],[51.56,75.84,14.22,47.33],[45.5,76.21,19.16,54.79],[43.13,74.67,10.74,58.97],[47.68,79.36,23.11,45.39],[60.59,79.06,35.24,32.13],[71.34,94.28,24.94,47.83],[71.74,97.55,19.16,52.36],[71.25,100.0,12.12,73.67],[90.09,97.03,25.82,64.95],[93.61,84.08,44.34,47.07],[94.3,90.84,38.45,64.58],[94.52,92.61,36.49,66.42],[75.78,100.0,23.57,78.35],[78.56,99.99,24.27,77.62],null],"raw":[[18.182,0.501,51.852,11.704],[24.242,0.501,52.0,10.986],[21.622,0.505,44.828,12.93],[16.216,0.501,48.387,11.641],[22.222,0.482,60.714,10.521],[16.667,0.479,57.143,12.296],[18.75,0.477,53.846,11.028],[19.565,0.487,59.459,10.317],[18.0,0.455,51.22,12.626],[13.559,0.457,43.137,14.881],[9.859,0.353,50.0,12.211],[9.722,0.331,53.846,11.441],[9.89,0.297,58.537,7.817],[3.409,0.334,49.412,9.3],[2.198,0.423,37.079,12.34],[1.961,0.377,41.0,9.363],[1.887,0.364,42.308,9.049],[8.333,0.313,50.909,7.022],[7.377,0.314,50.442,7.145],null]},"Sudan":{"s":[[100.0,66.17,0.0,100.0],[100.0,64.41,0.0,100.0],[100.0,61.11,0.0,100.0],[100.0,75.99,25.96,0.0],[100.0,45.62,74.25,0.0],[100.0,55.18,64.89,0.0],[97.87,63.49,55.44,0.0],[91.28,48.13,71.43,0.0],[89.21,51.73,67.63,0.0],[97.14,68.25,46.9,0.0],[91.48,73.22,34.26,0.0],[84.41,71.23,40.72,8.27],[86.48,71.49,39.58,84.16],[96.28,68.75,45.58,81.83],[88.17,67.9,47.2,81.67],[85.49,69.55,43.94,94.24],[85.52,61.92,57.59,90.59],[87.54,48.75,71.44,89.2],[85.07,51.21,69.51,91.99],null],"raw":[[0.0,0.545,67.742,2.524],[0.0,0.557,69.186,2.221],[0.0,0.58,71.631,1.909],[0.0,0.478,49.319,20.549],[0.0,0.686,17.15,39.834],[0.0,0.62,23.384,36.016],[0.731,0.564,29.684,32.581],[2.999,0.669,19.034,37.224],[3.713,0.644,21.56,36.28],[0.983,0.531,35.371,30.585],[2.931,0.497,43.789,26.741],[5.365,0.511,39.49,18.938],[4.651,0.509,40.244,6.033],[1.278,0.528,36.252,6.43],[4.071,0.534,35.174,6.456],[4.992,0.522,37.345,4.319],[4.983,0.574,28.248,4.94],[4.288,0.664,19.021,5.176],[5.138,0.648,20.311,4.702],null]},"Tanzania":{"s":[[95.12,95.54,14.03,79.19],[95.94,81.77,41.23,0.99],[96.77,78.95,41.3,9.56],[96.41,76.44,34.32,20.57],[96.76,79.73,28.18,28.39],[97.22,85.63,9.98,46.59],[96.96,87.96,0.0,61.83],[97.12,92.64,0.0,67.09],[97.24,91.61,13.91,37.55],[96.92,95.06,0.22,75.63],[95.8,75.19,4.25,71.55],[95.55,74.89,2.11,73.63],[95.31,67.35,0.0,77.28],[95.94,67.74,0.0,79.65],[95.97,73.85,12.0,68.83],[95.37,71.07,5.24,74.58],[95.54,62.83,0.0,95.21],[94.87,64.88,0.0,100.0],[93.88,73.32,0.0,98.33],null],"raw":[[1.681,0.344,57.265,6.879],[1.395,0.439,39.151,20.176],[1.111,0.458,39.101,18.717],[1.235,0.475,43.75,16.846],[1.113,0.453,47.842,15.517],[0.958,0.412,59.961,12.422],[1.047,0.396,67.549,9.83],[0.992,0.364,69.95,8.936],[0.949,0.371,57.348,13.959],[1.061,0.348,66.462,7.484],[1.445,0.484,63.783,8.177],[1.532,0.486,65.205,7.823],[1.615,0.537,68.263,7.202],[1.396,0.535,66.795,6.799],[1.385,0.493,58.621,8.639],[1.593,0.512,63.121,7.662],[1.535,0.568,69.647,4.154],[1.766,0.554,73.51,3.053],[2.104,0.496,67.081,3.624],null]},"Uganda":{"s":[[100.0,60.66,64.35,46.81],[100.0,63.51,59.47,45.48],[100.0,64.47,61.34,47.09],[100.0,77.26,45.41,56.45],[100.0,78.38,39.18,60.46],[100.0,75.47,41.87,57.24],[100.0,39.78,84.99,0.0],[100.0,17.67,100.0,0.0],[100.0,29.54,95.82,5.17],[100.0,33.63,96.62,8.08],[100.0,32.48,97.21,7.5],[100.0,24.28,97.22,14.52],[100.0,39.72,89.18,21.7],[100.0,31.38,95.41,19.72],[100.0,30.18,96.08,90.89],[100.0,31.67,96.3,95.54],[100.0,35.06,96.08,99.77],[100.0,35.8,95.58,96.09],[100.0,36.41,95.61,94.02],null],"raw":[[0.0,0.583,23.75,12.385],[0.0,0.564,27.0,12.611],[0.0,0.557,25.751,12.337],[0.0,0.469,36.364,10.745],[0.0,0.462,40.511,10.063],[0.0,0.482,38.722,10.611],[0.0,0.726,10.0,23.869],[0.0,0.877,0.0,26.359],[0.0,0.796,2.786,19.465],[0.0,0.768,2.254,18.97],[0.0,0.776,1.857,19.068],[0.0,0.832,1.852,17.875],[0.0,0.726,7.209,16.653],[0.0,0.783,3.057,16.991],[0.0,0.791,2.609,4.889],[0.0,0.781,2.467,4.097],[0.0,0.758,2.609,3.379],[0.0,0.753,2.946,4.005],[0.0,0.749,2.926,4.356],null]},"Zambia":{"s":[[100.0,0.0,99.84,100.0],[100.0,0.0,99.84,100.0],[94.91,0.01,99.84,100.0],[100.0,0.0,99.85,100.0],[100.0,0.0,99.86,100.0],[97.74,0.0,99.87,96.23],[100.0,0.17,99.76,95.81],[100.0,0.14,99.77,95.19],[100.0,9.09,95.76,97.41],[100.0,9.56,95.56,88.05],[69.3,17.49,91.45,71.08],[100.0,36.83,79.48,70.86],[100.0,39.8,76.95,70.55],[100.0,42.17,76.96,67.35],[100.0,40.46,78.22,68.12],[100.0,24.85,87.97,47.29],[100.0,31.45,83.35,49.52],[100.0,31.38,83.49,52.35],[100.0,35.49,81.2,65.58],null],"raw":[[0.0,0.998,0.103,2.626],[0.0,0.998,0.104,2.912],[1.753,0.998,0.105,3.126],[0.0,0.998,0.101,3.147],[0.0,0.998,0.096,3.291],[0.777,0.998,0.087,3.981],[0.0,0.997,0.162,4.053],[0.0,0.997,0.15,4.158],[0.0,0.936,2.824,3.779],[0.0,0.933,2.961,5.371],[10.562,0.878,5.692,8.257],[0.0,0.746,13.668,8.295],[0.0,0.726,15.356,8.348],[0.0,0.709,15.348,8.892],[0.0,0.721,14.511,8.761],[0.0,0.828,8.014,12.303],[0.0,0.783,11.094,11.924],[0.0,0.783,10.997,11.441],[0.0,0.755,12.525,9.193],null]}},"rankDist":{"1":0.541,"2":0.0781,"3":0.1135,"4":0.0927,"5":0.0412,"6":0.0655,"7":0.036,"8":0.0249,"9":0.0071},"pillarNames":["Import dependence","Source concentration","Fuel-price exposure","Hydrology risk"]},"stress":{"demand":15.573,"hydro":2.932,"wind":2.321,"geo":6.442,"imports":1.524,"thermal":1.398,"thermalGW":0.57,"thermalCF":0.65,"co2PerTWh":0.658,"devH":[-0.4204,-0.049,0.2023,0.1107,-0.0779,-0.0482,0.0554,0.1767,-0.0631,-0.2942,0.0567,-0.0018,0.1665,0.0499,-0.114,0.0763,-0.0543,-0.0906,0.1139,-0.1215,0.1659,0.091,-0.0904,-0.1338,0.056,0.0108],"devG":[-0.0077,-0.0813,-0.375,0.0705,0.2204,0.0309,-0.0363,-0.0811,-0.0167,0.0324,0.0284,-0.036,-0.1813,-0.2468,0.0113,0.1759,0.053,-0.0206,0.0309,0.0384,-0.0265,-0.0628,-0.0018,0.0385,0.0003,0.0462],"devYears":[2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025]},"capacity":{"base":15.573,"imports":1.524,"thermal":1.398,"paths":{"Low":[15.365,15.767,16.262,16.816,17.418,18.064,18.75,19.477,20.243,21.05],"Base":[16.195,16.984,17.813,18.681,19.593,20.548,21.55,22.601,23.703,24.859],"High":[17.069,18.296,19.512,20.754,22.038,23.374,24.768,26.227,27.755,29.358]},"years":[2026,2027,2028,2029,2030,2031,2032,2033,2034,2035],"histPace1525":0.42379999999999995,"histPace2025":0.4736000000000001,"genAdds":[-0.13,1.15,0.47,0.26,0.12,0.7,0.58,-0.16,0.46,0.788]},"facts":{"ssi2024":{"Burundi":55.28,"DR Congo":77.71,"Ethiopia":62.64,"Kenya":87.32,"Mozambique":77.91,"Rwanda":70.11,"Sudan":74.44,"Tanzania":66.38,"Uganda":81.51,"Zambia":70.57},"rank2024":{"Kenya":1,"Uganda":2,"Mozambique":3,"DR Congo":4,"Sudan":5,"Zambia":6,"Rwanda":7,"Tanzania":8,"Ethiopia":9,"Burundi":10},"rankMedian":1.0,"ssiKenya2025":87.75090697319357,"mape":[2.9,3.9,3.3]}};
+(function(){
+"use strict";
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const NS="http://www.w3.org/2000/svg", f1=v=>(+v).toFixed(1), f0=v=>Math.round(v).toString(), pct=v=>(+v).toFixed(1)+"%";
+function S(tag,attrs,parent,text){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;if(parent)parent.appendChild(e);return e}
+function fill(e,c){e.style.fill=c;return e} function stroke(e,c,w){e.style.stroke=c;if(w)e.style.strokeWidth=w;return e}
+const tip=$("#tip");
+function showTip(html,x,y){tip.innerHTML=html;tip.style.display="block";const r=tip.getBoundingClientRect();let nx=x+14,ny=y+14;if(nx+r.width>innerWidth-8)nx=x-r.width-14;if(ny+r.height>innerHeight-8)ny=y-r.height-14;tip.style.left=Math.max(8,nx)+"px";tip.style.top=Math.max(8,ny)+"px"}
+function hideTip(){tip.style.display="none"}
+function mount(id,h){const c=document.getElementById(id);c.innerHTML="";const w=Math.max(260,c.clientWidth||600);const s=S("svg",{viewBox:`0 0 ${w} ${h}`,width:w,height:h,role:"img","aria-label":c.dataset.label||""},c);return{c,s,w,h}}
+function nice(max,n){n=n||5;const raw=max/n,p=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/p,step=(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p,t=[];let top=Math.ceil(max/step-1e-9)*step;for(let v=0;v<=top+1e-9;v+=step)t.push(+v.toFixed(6));return{t,max:top}}
+function axes(s,m,xs,ys,o){o.yt.forEach(v=>{const y=ys(v);S("line",{x1:m.l,x2:m.w-m.r,y1:y,y2:y,class:"grid-l"},s);S("text",{x:m.l-8,y:y+3.5,class:"tick","text-anchor":"end"},s,o.yf?o.yf(v):v)});o.xt.forEach(v=>S("text",{x:xs(v),y:m.h-8,class:"tick","text-anchor":"middle"},s,o.xf?o.xf(v):v));S("line",{x1:m.l,x2:m.w-m.r,y1:ys(0===o.yt[0]?0:o.yt[0]),y2:ys(0===o.yt[0]?0:o.yt[0]),class:"axis"},s)}
+function hover(s,m,inv,render){const g=S("g",{},s),line=S("line",{y1:m.t,y2:m.h-m.b,class:"xhair"},g);line.style.display="none";const dots=S("g",{},s);const r=S("rect",{x:m.l,y:m.t,width:m.w-m.l-m.r,height:m.h-m.t-m.b},s);r.style.fill="transparent";r.style.cursor="crosshair";
+ const move=e=>{const b=s.getBoundingClientRect(),px=(e.clientX-b.left)*(m.w/b.width),o=render(inv(px));if(!o)return;line.setAttribute("x1",o.x);line.setAttribute("x2",o.x);line.style.display="";dots.innerHTML="";(o.dots||[]).forEach(d=>{const c=S("circle",{cx:o.x,cy:d.y,r:3.6},dots);fill(c,d.c);stroke(c,"var(--ground)",1.5)});showTip(o.html,e.clientX,e.clientY)};
+ r.addEventListener("pointermove",move);r.addEventListener("pointerdown",move);r.addEventListener("pointerleave",()=>{line.style.display="none";dots.innerHTML="";hideTip()})}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const SRC=[["geo","Geothermal & other","--c-geo"],["hydro","Hydro","--c-hydro"],["wind","Wind","--c-wind"],["solar","Solar","--c-solar"],["bio","Bioenergy","--c-bio"],["fossil","Fossil (thermal)","--c-fossil"],["imports","Net imports","--c-import"]];
+const K=D.kenya, Y=D.years, iy=y=>Y.indexOf(y), CAP=D.capacity, ST=D.stress;
+const d00=K.demand[0], d25=K.demand[25], F=D.forecast, fi=y=>F.years.indexOf(y);
+const rowsHTML=(items,max,fmt)=>items.map(it=>`<div class="row${it.hl?" hl":""}"><span class="nm" title="${it.name}">${it.name}</span><div class="bar"><i style="width:${clamp(it.v/max*100,0,100)}%;background:${it.c}"></i></div><span class="v">${fmt(it.v)}</span></div>`).join("");
+
+/* ---------- hero contours ---------- */
+(function(){const g=$("#contours");const cx=380,cy=300;for(let k=1;k<=17;k++){const r0=k*17,ph=k*.7;let d="";for(let i=0;i<=140;i++){const a=i/140*Math.PI*2,r=r0*(1+.16*Math.sin(3*a+ph)+.08*Math.sin(5*a+2*ph)+.05*Math.sin(2*a-ph));d+=(i?"L":"M")+(cx+r*Math.cos(a)*1.15).toFixed(1)+" "+(cy+r*Math.sin(a)).toFixed(1)}const p=S("path",{d:d+"Z",fill:"none"},g);stroke(p,k<5?"var(--ember)":"var(--line-2)",k<5?1.2:1);p.style.opacity=k<5?String(.9-k*.12):String(.8-k*.03)}})();
+
+/* ---------- KPIs ---------- */
+function spark(vals,color,w,h){w=w||220;h=h||44;const mn=Math.min(...vals),mx=Math.max(...vals),xs=i=>i/(vals.length-1)*(w-6)+3,ys=v=>h-5-(v-mn)/(mx-mn||1)*(h-12);let d="";vals.forEach((v,i)=>d+=(i?"L":"M")+xs(i).toFixed(1)+" "+ys(v).toFixed(1));const sv=document.createElementNS(NS,"svg");sv.setAttribute("viewBox",`0 0 ${w} ${h}`);sv.setAttribute("preserveAspectRatio","none");sv.setAttribute("aria-hidden","true");const a=S("path",{d:d+`L${xs(vals.length-1)} ${h}L${xs(0)} ${h}Z`},sv);fill(a,color);a.style.opacity=".16";const l=S("path",{d,fill:"none","vector-effect":"non-scaling-stroke"},sv);stroke(l,color,2);const c=S("circle",{cx:xs(vals.length-1),cy:ys(vals[vals.length-1]),r:3.5},sv);fill(c,color);return sv.outerHTML}
+(function(){const impShare=K.imports.map((v,i)=>v/K.demand[i]*100),kssi=D.security.data.Kenya.s.map(r=>r?r.reduce((a,b)=>a+b)/4:null).filter(v=>v!=null);
+ const kp=[{cap:"Demand, 2025",val:f1(d25),unit:"TWh",note:`Up from ${f1(d00)} TWh in 2000, ${pct(D.cagr*100)} a year.`,sp:spark(K.demand,"var(--ember)"),pill:null},
+  {cap:"Forecast, 2035",val:f1(F.ens[9]),unit:"TWh",note:`80% range ${f1(F.lo80[9])} to ${f1(F.hi80[9])} TWh.`,sp:spark([d25,...F.ens],"var(--c-hydro)"),pill:null},
+  {cap:"Supply security",val:"#"+D.facts.rank2024.Kenya,unit:"of 10",note:`Index ${f0(D.facts.ssi2024.Kenya)} of 100 in 2024, ahead of ${Object.entries(D.facts.rank2024).find(e=>e[1]===2)[0]}.`,sp:spark(kssi,"var(--c-wind)"),pill:null},
+  {cap:"Net imports",val:f1(impShare[25]),unit:"% of demand",note:`Was ${f1(impShare[15])}% in 2015. The one pillar getting worse.`,sp:spark(impShare.slice(15),"var(--c-import)"),pill:'<span class="pill warn">▲ Watch</span>'}];
+ $("#kpis").innerHTML=kp.map(k=>`<div class="kpi"><div class="cap" style="display:flex;justify-content:space-between;gap:8px;align-items:center">${k.cap}${k.pill||""}</div><div class="val num">${k.val}<small>${k.unit}</small></div><div class="note">${k.note}</div>${k.sp}</div>`).join("");
+ $("#heroLede").textContent=`Electricity demand rose from ${f1(d00)} TWh in 2000 to ${f1(d25)} TWh in 2025 and is forecast to reach about ${f1(F.ens[9])} TWh by 2035. This dashboard turns an open-data analysis of the grid into controls you can move: forecast scenarios, supply-security weights, drought and import shocks, and the capacity needed to keep up.`}());
+
+/* ---------- mix chart ---------- */
+const mixState={on:{}};SRC.forEach(r=>mixState.on[r[0]]=true);
+function drawMix2(){const h=Math.max(280,Math.min(380,innerWidth*.42)),{s,w}=mount("mixChart",h),m={l:44,r:14,t:12,b:28,w,h},xs=v=>m.l+(v-2000)/25*(w-m.l-m.r);
+ const ymax=nice(Math.max(...K.demand)*1.04,4),ys=v=>m.t+(1-v/ymax.max)*(h-m.t-m.b);axes(s,m,xs,ys,{yt:ymax.t,xt:[2000,2005,2010,2015,2020,2025],yf:v=>v+""});
+ const act=SRC.filter(r=>mixState.on[r[0]]),cum=[Y.map(()=>0)];act.forEach(r=>cum.push(cum[cum.length-1].map((v,i)=>v+Math.max(0,K[r[0]][i]||0))));
+ act.forEach((r,k)=>{let d="";Y.forEach((y,i)=>d+=(i?"L":"M")+xs(y).toFixed(1)+" "+ys(cum[k+1][i]).toFixed(1));for(let i=Y.length-1;i>=0;i--)d+="L"+xs(Y[i]).toFixed(1)+" "+ys(cum[k][i]).toFixed(1);const p=S("path",{d:d+"Z"},s);fill(p,`var(${r[2]})`);stroke(p,"var(--ground)",1);p.style.opacity=".92"});
+ let dd="";Y.forEach((y,i)=>dd+=(i?"L":"M")+xs(y).toFixed(1)+" "+ys(K.demand[i]).toFixed(1));const dl=S("path",{d:dd,fill:"none","stroke-dasharray":"5 4"},s);stroke(dl,"var(--ink)",1.6);
+ S("text",{x:m.l,y:10,class:"tick"},s,"TWh");
+ hover(s,m,px=>clamp(Math.round((px-m.l)/(w-m.l-m.r)*25),0,25),i=>{const rows=act.slice().reverse().map(r=>`<div class="r"><span><i style="background:var(${r[2]})"></i>${r[1]}</span><b>${f1(K[r[0]][i])}</b></div>`).join("");return{x:xs(Y[i]),html:`<b>${Y[i]}</b><div class="r"><span>Demand</span><b>${f1(K.demand[i])} TWh</b></div>${rows}`,dots:[{y:ys(K.demand[i]),c:"var(--ink)"}]}})}
+function mixLegend(){$("#mixLegend").innerHTML=SRC.map(r=>`<button aria-pressed="${mixState.on[r[0]]}" data-k="${r[0]}"><i style="background:var(${r[2]})"></i>${r[1]}</button>`).join("")+`<span><i style="background:none;border-top:2px dashed var(--ink);height:0;width:14px;border-radius:0"></i>Demand</span>`;$$("#mixLegend button").forEach(b=>b.onclick=()=>{mixState.on[b.dataset.k]=!mixState.on[b.dataset.k];mixLegend();drawMix2()})}
+function mixShare(){const tot=K.demand[25];const it=SRC.map(r=>({name:r[1],v:K[r[0]][25]/tot*100,c:`var(${r[2]})`}));$("#mixShare").innerHTML=rowsHTML(it,50,v=>f1(v)+"%")}
+
+/* ---------- benchmark ---------- */
+function bench(){const b=D.benchmark.slice().sort((a,c)=>c.perCapita-a.perCapita);$("#bmTable").innerHTML=`<thead><tr><th>Country</th><th>TWh</th><th>kWh / person</th><th>Hydro %</th><th>Fossil %</th><th>Imports %</th><th>g CO₂/kWh</th><th>Growth %/yr</th></tr></thead><tbody>`+b.map(r=>`<tr${r.country==="Kenya"?' class="k"':""}><td>${r.country}</td><td>${r.demand}</td><td>${r.perCapita}</td><td>${r.hydro}</td><td>${r.fossil}</td><td>${r.imports}</td><td>${r.intensity}</td><td>${r.cagr}</td></tr>`).join("")+"</tbody>"}
+function drawScatter(){const h=Math.max(280,Math.min(360,innerWidth*.4)),{s,w}=mount("scatter",h),m={l:50,r:18,t:14,b:36,w,h},P=D.scatter,lx=v=>Math.log10(v);
+ const xmin=lx(Math.min(...P.map(p=>p.gdp))*.85),xmax=lx(Math.max(...P.map(p=>p.gdp))*1.15),ymin=lx(Math.min(...P.map(p=>p.dem))*.8),ymax=lx(Math.max(...P.map(p=>p.dem))*1.2),xs=v=>m.l+(lx(v)-xmin)/(xmax-xmin)*(w-m.l-m.r),ys=v=>m.t+(1-(lx(v)-ymin)/(ymax-ymin))*(h-m.t-m.b);
+ [50,100,200,500,1000].filter(v=>lx(v)>=ymin&&lx(v)<=ymax).forEach(v=>{S("line",{x1:m.l,x2:w-m.r,y1:ys(v),y2:ys(v),class:"grid-l"},s);S("text",{x:m.l-8,y:ys(v)+3.5,class:"tick","text-anchor":"end"},s,v)});
+ [500,1000,2000,5000,10000].filter(v=>lx(v)>=xmin&&lx(v)<=xmax).forEach(v=>{S("line",{x1:xs(v),x2:xs(v),y1:m.t,y2:h-m.b,class:"grid-l"},s);S("text",{x:xs(v),y:h-14,class:"tick","text-anchor":"middle"},s,v>=1000?v/1000+"k":v)});
+ S("text",{x:w-m.r,y:h-1,class:"tick","text-anchor":"end"},s,"GDP per person (int-$)");S("text",{x:m.l,y:9,class:"tick"},s,"kWh per person");
+ P.slice().sort((a,b)=>(a.country==="Kenya")-(b.country==="Kenya")).forEach(p=>{const kk=p.country==="Kenya",c=S("circle",{cx:xs(p.gdp),cy:ys(p.dem),r:kk?7:4.6},s);fill(c,kk?"var(--ember)":"var(--c-fossil)");stroke(c,"var(--ground)",1.5);c.style.cursor="default";c.addEventListener("pointermove",e=>showTip(`<b>${p.country}</b><div class="r"><span>GDP / person</span><b>${p.gdp.toLocaleString()}</b></div><div class="r"><span>kWh / person</span><b>${p.dem}</b></div>`,e.clientX,e.clientY));c.addEventListener("pointerleave",hideTip);
+  const placed=drawScatter.placed=(p===P[0]?[]:drawScatter.placed||[]);let ly=ys(p.dem)+3.5;const lx0=xs(p.gdp)+(kk?10:7);placed.forEach(q=>{if(Math.abs(q[0]-lx0)<70&&Math.abs(q[1]-ly)<12)ly=q[1]+12});placed.push([lx0,ly]);
+  const t=S("text",{x:lx0,y:ly,class:"lbl"},s,p.country);if(kk){fill(t,"var(--ember)");t.style.fontWeight="600"}else t.style.opacity=".8"})}
+
+/* ---------- forecast ---------- */
+const fs={scen:"Base",models:{}};const MODEL_COL=["--m1","--m2","--m3","--m4","--m5"];
+function drawFan(){const h=Math.max(300,Math.min(400,innerWidth*.42)),{s,w}=mount("fanChart",h),m={l:44,r:56,t:14,b:28,w,h},xs=v=>m.l+(v-2000)/35*(w-m.l-m.r),yy=nice(Math.max(...F.hi95)*1.03,5),ys=v=>m.t+(1-v/yy.max)*(h-m.t-m.b);
+ axes(s,m,xs,ys,{yt:yy.t,xt:[2000,2005,2010,2015,2020,2025,2030,2035]});
+ const ys0=[2025,...F.years],band=(lo,hi)=>{let d="";ys0.forEach((y,i)=>{d+=(i?"L":"M")+xs(y).toFixed(1)+" "+ys(i?hi[i-1]:d25).toFixed(1)});for(let i=ys0.length-1;i>=0;i--)d+="L"+xs(ys0[i]).toFixed(1)+" "+ys(i?lo[i-1]:d25).toFixed(1);return d+"Z"};
+ const b95=S("path",{d:band(F.lo95,F.hi95)},s);fill(b95,"var(--ember)");b95.style.opacity=".10";const b80=S("path",{d:band(F.lo80,F.hi80)},s);fill(b80,"var(--ember)");b80.style.opacity=".20";
+ S("line",{x1:xs(2025.5),x2:xs(2025.5),y1:m.t,y2:h-m.b},s).style.stroke="var(--line-2)";
+ const line=(arr,c,wd,dash)=>{let d="";arr.forEach(([y,v],i)=>d+=(i?"L":"M")+xs(y).toFixed(1)+" "+ys(v).toFixed(1));const p=S("path",{d,fill:"none","stroke-linejoin":"round"},s);stroke(p,c,wd);if(dash)p.setAttribute("stroke-dasharray",dash);return p};
+ line(Y.map((y,i)=>[y,K.demand[i]]),"var(--ink)",2.2);
+ Object.keys(fs.models).filter(k=>fs.models[k]).forEach(k=>{const idx=Object.keys(F.models).indexOf(k);line([[2025,d25],...F.years.map((y,i)=>[y,F.models[k][i]])],`var(${MODEL_COL[idx]})`,1.4,"4 3")});
+ const pick={Low:F.lo80,Base:F.ens,High:F.hi80}[fs.scen];line([[2025,d25],...F.years.map((y,i)=>[y,pick[i]])],"var(--ember)",3);
+ const e=S("circle",{cx:xs(2035),cy:ys(pick[9]),r:4.5},s);fill(e,"var(--ember)");S("text",{x:xs(2035)+9,y:ys(pick[9])+4,class:"lbl"},s,f1(pick[9])).style.fill="var(--ember)";
+ S("text",{x:xs(2025.5)+6,y:m.t+10,class:"tick"},s,"forecast →");S("text",{x:m.l,y:9,class:"tick"},s,"TWh");
+ hover(s,m,px=>clamp(Math.round(2000+(px-m.l)/(w-m.l-m.r)*35),2000,2035),yr=>{if(yr<=2025){const i=yr-2000;return{x:xs(yr),html:`<b>${yr}</b><div class="r"><span>Observed</span><b>${f1(K.demand[i])} TWh</b></div>`,dots:[{y:ys(K.demand[i]),c:"var(--ink)"}]}}const i=yr-2026;return{x:xs(yr),html:`<b>${yr}</b><div class="r"><span>Central</span><b>${f1(F.ens[i])}</b></div><div class="r"><span>80% range</span><b>${f1(F.lo80[i])}–${f1(F.hi80[i])}</b></div><div class="r"><span>95% range</span><b>${f1(F.lo95[i])}–${f1(F.hi95[i])}</b></div>`,dots:[{y:ys(pick[i]),c:"var(--ember)"}]}})}
+function fanLegend(){$("#fanLegend").innerHTML=`<span><i style="background:var(--ink)"></i>Observed</span><span><i style="background:var(--ember)"></i>Selected scenario</span><span><i style="background:var(--ember);opacity:.25"></i>80% / 95% band</span><span class="cap" style="align-self:center">Compare models:</span>`+Object.keys(F.models).map((k,i)=>`<button aria-pressed="${!!fs.models[k]}" data-m="${k}"><i style="background:var(${MODEL_COL[i]})"></i>${k}</button>`).join("");$$("#fanLegend button").forEach(b=>b.onclick=()=>{fs.models[b.dataset.m]=!fs.models[b.dataset.m];fanLegend();drawFan()})}
+let btH=0;function bt(){const items=D.backtest.map(b=>({name:b.model,v:b.h[btH],c:b.model.startsWith("Ensemble")?"var(--ember)":"var(--c-fossil)",hl:b.model.startsWith("Ensemble")})).sort((a,b)=>a.v-b.v);$("#btRows").innerHTML=rowsHTML(items,Math.max(...items.map(i=>i.v))*1.1,v=>v.toFixed(1)+"%")}
+function fcTable(){const yrs=[2026,2027,2028,2029,2030,2031,2032,2033,2034,2035];$("#fcTable").innerHTML=`<thead><tr><th>Year</th>${yrs.map(y=>`<th>${y}</th>`).join("")}</tr></thead><tbody>`+[["Central",F.ens],["80% low",F.lo80],["80% high",F.hi80],["95% low",F.lo95],["95% high",F.hi95]].map(r=>`<tr${r[0]==="Central"?' class="k"':""}><td>${r[0]}</td>${r[1].map(v=>`<td>${f1(v)}</td>`).join("")}</tr>`).join("")+"</tbody>";
+ $("#fcStrip").innerHTML=[["2030 central",f1(F.ens[4]),"TWh"],["2035 central",f1(F.ens[9]),"TWh"],["Growth to 2035",pct(((F.ens[9]/d25)**.1-1)*100),"a year"],["1-yr backtest error",D.facts.mape[0]+"%","MAPE"],["80% band hit rate",f0(D.coverage["1"].cover80*100)+"%","1 yr, n=15"]].map(c=>`<div><div class="cap">${c[0]}</div><div class="big num">${c[1]}<small>${c[2]}</small></div></div>`).join("")}
+
+/* ---------- security ---------- */
+const SEC=D.security,CT=Object.keys(SEC.data),PN=SEC.pillarNames,sec={w:[25,25,25,25],year:2024,peer:"Uganda"};
+const PRE=[["Equal",[25,25,25,25]],["Imports 70%",[70,10,10,10]],["Fuel 70%",[10,10,70,10]],["Concentration 70%",[10,70,10,10]],["Hydrology 70%",[10,10,10,70]]];
+function score(c,yi,w){const r=SEC.data[c].s[yi];if(!r)return null;const t=w.reduce((a,b)=>a+b,0)||1;return r.reduce((a,v,i)=>a+v*w[i],0)/t}
+function secCtl(){$("#wPresets").innerHTML=PRE.map((p,i)=>`<button data-i="${i}" aria-pressed="${JSON.stringify(sec.w)===JSON.stringify(p[1])}">${p[0]}</button>`).join("");$$("#wPresets button").forEach(b=>b.onclick=()=>{sec.w=PRE[+b.dataset.i][1].slice();secCtl();secAll()});
+ $("#wCtl").innerHTML=PN.map((n,i)=>`<div class="ctl"><label for="w${i}"><span>${n}</span><b>${f0(sec.w[i]/(sec.w.reduce((a,b)=>a+b,0)||1)*100)}%</b></label><input type="range" id="w${i}" min="0" max="100" value="${sec.w[i]}"></div>`).join("");$$("#wCtl input").forEach((inp,i)=>inp.oninput=()=>{sec.w[i]=+inp.value;$$("#wPresets button").forEach(b=>b.setAttribute("aria-pressed","false"));$$("#wCtl label b").forEach((b,j)=>b.textContent=f0(sec.w[j]/(sec.w.reduce((a,c)=>a+c,0)||1)*100)+"%");secAll()})}
+function ranking(){const yi=SEC.years.indexOf(sec.year),list=CT.map(c=>({c,v:score(c,yi,sec.w)})).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v);
+ $("#rankRows").innerHTML=rowsHTML(list.map(x=>({name:x.c,v:x.v,c:x.c==="Kenya"?"var(--ember)":x.c===sec.peer?"var(--peer)":"var(--c-fossil)",hl:x.c==="Kenya"||x.c===sec.peer})),100,v=>f0(v));
+ const rk=list.findIndex(x=>x.c==="Kenya")+1;$("#kRank").innerHTML=`${rk}<small>of ${list.length}</small>`;$("#kScore").textContent=f0(list.find(x=>x.c==="Kenya").v);$("#secYearV").textContent=sec.year}
+function drawTraj(){const h=Math.max(280,Math.min(360,innerWidth*.4)),{s,w}=mount("trajChart",h),m={l:36,r:44,t:12,b:28,w,h},xs=v=>m.l+(v-2006)/19*(w-m.l-m.r),ys=v=>m.t+(1-(v-20)/80)*(h-m.t-m.b);
+ axes(s,m,xs,ys,{yt:[20,40,60,80,100],xt:[2006,2010,2015,2020,2025]});
+ const series=c=>SEC.years.map((y,i)=>[y,score(c,i,sec.w)]).filter(p=>p[1]!=null),draw=(c,col,wd,op)=>{const pts=series(c);let d="";pts.forEach((p,i)=>d+=(i?"L":"M")+xs(p[0]).toFixed(1)+" "+ys(p[1]).toFixed(1));const p=S("path",{d,fill:"none","stroke-linejoin":"round"},s);stroke(p,col,wd);p.style.opacity=op;return pts};
+ CT.filter(c=>c!=="Kenya"&&c!==sec.peer).forEach(c=>draw(c,"var(--c-fossil)",1,.35));const pp=draw(sec.peer,"var(--peer)",2.2,1),kp=draw("Kenya","var(--ember)",3,1);
+ const lab=(p,t,c)=>{const e=S("text",{x:xs(p[p.length-1][0])+7,y:ys(p[p.length-1][1])+4,class:"lbl"},s,t);fill(e,c)};lab(kp,"Kenya","var(--ember)");lab(pp,sec.peer.length>8?sec.peer.slice(0,7)+".":sec.peer,"var(--peer)");
+ hover(s,m,px=>clamp(Math.round((px-m.l)/(w-m.l-m.r)*19),0,19),i=>{const rows=CT.map(c=>({c,v:score(c,i,sec.w)})).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v).map(x=>`<div class="r"><span${x.c==="Kenya"?' style="color:var(--ember)"':""}>${x.c}</span><b>${f0(x.v)}</b></div>`).join("");return{x:xs(SEC.years[i]),html:`<b>${SEC.years[i]}</b>${rows}`,dots:[{y:ys(score("Kenya",i,sec.w)),c:"var(--ember)"}]}})}
+function drawRadar(){const h=300,{s,w}=mount("radar",h),cx=w/2,cy=h/2+4,R=Math.min(w/2-70,h/2-34),ang=i=>-Math.PI/2+i*Math.PI/2,pt=(i,v)=>[cx+Math.cos(ang(i))*R*v/100,cy+Math.sin(ang(i))*R*v/100];
+ [25,50,75,100].forEach(v=>{const p=S("polygon",{points:[0,1,2,3].map(i=>pt(i,v).join(",")).join(" "),fill:"none"},s);stroke(p,"var(--line)",1)});
+ [0,1,2,3].forEach(i=>{const e=pt(i,100);S("line",{x1:cx,y1:cy,x2:e[0],y2:e[1]},s).style.stroke="var(--line)";const l=pt(i,118),t=S("text",{x:l[0],y:l[1]+3,class:"tick","text-anchor":i===1?"start":i===3?"end":"middle"},s,PN[i].split(" ")[0]+" "+(PN[i].split(" ")[1]||""));t.style.fill="var(--ink-2)"});
+ const yi=SEC.years.indexOf(sec.year),poly=(c,col,op)=>{const r=SEC.data[c].s[yi];if(!r)return;const p=S("polygon",{points:r.map((v,i)=>pt(i,v).join(",")).join(" ")},s);fill(p,col);p.style.fillOpacity=op;stroke(p,col,2);r.forEach((v,i)=>{const q=pt(i,v),c2=S("circle",{cx:q[0],cy:q[1],r:3.4},s);fill(c2,col);c2.addEventListener("pointermove",e=>showTip(`<b>${c} · ${PN[i]}</b><div class="r"><span>Score</span><b>${f0(v)}</b></div><div class="r"><span>Raw</span><b>${SEC.data[c].raw[yi][i]}</b></div>`,e.clientX,e.clientY));c2.addEventListener("pointerleave",hideTip)})};
+ poly(sec.peer,"var(--peer)",.12);poly("Kenya","var(--ember)",.22);
+ $("#radarLegend").innerHTML=`<span><i style="background:var(--ember)"></i>Kenya</span><span><i style="background:var(--peer)"></i>${sec.peer}</span><span>Year ${sec.year}</span>`}
+function pillarRows(){const a=SEC.data.Kenya.s[SEC.years.indexOf(2015)],b=SEC.data.Kenya.s[SEC.years.indexOf(2025)],ra=SEC.data.Kenya.raw[SEC.years.indexOf(2015)],rb=SEC.data.Kenya.raw[SEC.years.indexOf(2025)];
+ const unit=["% of demand","HHI","% fossil","% at risk"];$("#pillarRows").innerHTML=PN.map((n,i)=>{const d=b[i]-a[i];return`<div><div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:4px"><span>${n}</span><span class="mono" style="color:${d<-5?"var(--bad)":d>5?"var(--good)":"var(--ink-2)"}">${f0(a[i])} → ${f0(b[i])} ${d<-5?"▼":d>5?"▲":"■"}</span></div><div class="bar" style="height:10px;background:var(--surface-2);position:relative;border-radius:2px"><i style="position:absolute;left:0;top:0;bottom:0;width:${a[i]}%;background:var(--c-fossil);opacity:.55;border-radius:2px"></i><i style="position:absolute;left:0;top:3px;bottom:3px;width:${b[i]}%;background:var(--ember);border-radius:2px"></i></div><div class="cap" style="margin-top:3px;text-transform:none;letter-spacing:.02em">raw ${ra[i]} → ${rb[i]} ${unit[i]}</div></div>`}).join("")}
+function drawHist(){const h=210,{s,w}=mount("rankHist",h),m={l:36,r:8,t:10,b:32,w,h},R=SEC.rankDist,ks=Array.from({length:9},(_,i)=>i+1),mx=nice(Math.max(...Object.values(R))*100,4),bw=(w-m.l-m.r)/9,ys=v=>m.t+(1-v/mx.max)*(h-m.t-m.b);
+ mx.t.forEach(v=>{S("line",{x1:m.l,x2:w-m.r,y1:ys(v),y2:ys(v),class:"grid-l"},s);S("text",{x:m.l-6,y:ys(v)+3.5,class:"tick","text-anchor":"end"},s,v+"%")});
+ ks.forEach((k,i)=>{const v=(R[k]||0)*100,r=S("rect",{x:m.l+i*bw+4,y:ys(v),width:bw-8,height:ys(0)-ys(v),rx:2},s);fill(r,k===1?"var(--ember)":"var(--c-fossil)");r.addEventListener("pointermove",e=>showTip(`<b>Rank ${k}</b><div class="r"><span>Share of draws</span><b>${v.toFixed(1)}%</b></div>`,e.clientX,e.clientY));r.addEventListener("pointerleave",hideTip);S("text",{x:m.l+i*bw+bw/2,y:h-16,class:"tick","text-anchor":"middle"},s,k)});S("text",{x:w-m.r,y:h-1,class:"tick","text-anchor":"end"},s,"rank →")}
+function secAll(){ranking();drawTraj();drawRadar()}
+
+/* ---------- stress ---------- */
+const stress={h:42,w:0,g:0,imp:0,cf:65},SP=[["Baseline",{h:0,w:0,g:0,imp:100}],["Moderate drought",{h:25,w:0,g:0,imp:100}],["2000-type drought",{h:42,w:0,g:0,imp:100}],["Imports lost",{h:0,w:0,g:0,imp:0}],["Drought + half imports",{h:25,w:0,g:0,imp:50}],["2000 drought + imports lost",{h:42,w:0,g:0,imp:0}],["Compound extreme",{h:42,w:20,g:10,imp:0}]];
+const SL=[["h","Hydro loss","%",0,60,1],["w","Wind loss","%",0,40,1],["g","Geothermal loss","%",0,30,1],["imp","Imports available","%",0,100,5],["cf","Thermal availability","%",40,90,1]];
+stress.imp=0;
+function calc(o){const lost=ST.hydro*o.h/100+ST.wind*o.w/100+ST.geo*o.g/100+ST.imports*(1-o.imp/100),ceil=ST.thermalGW*8.76*o.cf/100,head=Math.max(0,ceil-ST.thermal),add=Math.min(lost,head),un=Math.max(0,lost-head);return{lost,ceil,head,add,un,unp:un/ST.demand*100,co2:add*ST.co2PerTWh,hydro:ST.hydro*o.h/100,wind:ST.wind*o.w/100,geo:ST.geo*o.g/100,imp:ST.imports*(1-o.imp/100)}}
+function sCtl(){$("#sPresets").innerHTML=SP.map((p,i)=>`<button data-i="${i}" aria-pressed="false">${p[0]}</button>`).join("");$$("#sPresets button").forEach(b=>b.onclick=()=>{Object.assign(stress,SP[+b.dataset.i][1]);$$("#sPresets button").forEach(x=>x.setAttribute("aria-pressed",x===b?"true":"false"));syncS();stressAll()});
+ $("#sCtl").innerHTML=SL.map(r=>`<div class="ctl"><label for="s_${r[0]}"><span>${r[1]}</span><b id="sv_${r[0]}"></b></label><input type="range" id="s_${r[0]}" min="${r[3]}" max="${r[4]}" step="${r[5]}"></div>`).join("");SL.forEach(r=>{$("#s_"+r[0]).oninput=e=>{stress[r[0]]=+e.target.value;$$("#sPresets button").forEach(x=>x.setAttribute("aria-pressed","false"));syncS(true);stressAll()}});syncS();$$("#sPresets button")[5].setAttribute("aria-pressed","true")}
+function syncS(skip){SL.forEach(r=>{if(!skip)$("#s_"+r[0]).value=stress[r[0]];$("#sv_"+r[0]).textContent=stress[r[0]]+"%"})}
+function drawGauge(r){const h=190,{s,w}=mount("gauge",h),cx=w/2,cy=h-34,R=Math.min(w/2-14,h-52),a=t=>Math.PI*(1-t),P=(t,rr)=>[cx+Math.cos(a(t))*rr,cy-Math.sin(a(t))*rr],arc=(t0,t1)=>`M${P(t0,R)} A${R} ${R} 0 ${t1-t0>.5?1:0} 1 ${P(t1,R)}`;
+ stroke(S("path",{d:arc(0,1),fill:"none","stroke-linecap":"round"},s),"var(--line-2)",12);const t=clamp(r.unp/15,0,1),col=r.unp<.05?"var(--good)":r.unp<3?"var(--warn)":"var(--bad)";if(t>0)stroke(S("path",{d:arc(0,Math.max(t,.012)),fill:"none","stroke-linecap":"round"},s),col,12);
+ [0,5,10,15].forEach(v=>{const p=P(v/15,R+16);S("text",{x:p[0],y:p[1]+4,class:"tick","text-anchor":"middle"},s,v+"%")});
+ const big=S("text",{x:cx,y:cy-6,"text-anchor":"middle"},s,r.unp<.05?"0":r.unp.toFixed(1)+"%");big.style.font="700 40px var(--display)";fill(big,"var(--ink)");S("text",{x:cx,y:cy+16,class:"tick","text-anchor":"middle"},s,"UNSERVED, % OF DEMAND")}
+function drawStressBars(r){const h=190,{s,w}=mount("stressBars",h),m={l:84,r:12,t:16,b:30,w,h},mx=6,xs=v=>m.l+v/mx*(w-m.l-m.r);[0,2,4,6].forEach(v=>{S("line",{x1:xs(v),x2:xs(v),y1:m.t,y2:h-m.b,class:"grid-l"},s);S("text",{x:xs(v),y:h-14,class:"tick","text-anchor":"middle"},s,v)});S("text",{x:w-m.r,y:h-1,class:"tick","text-anchor":"end"},s,"TWh");
+ const bar=(y,segs,label)=>{let x=0;S("text",{x:m.l-8,y:y+16,class:"lbl","text-anchor":"end"},s,label);segs.forEach(sg=>{if(sg.v<=0)return;const rc=S("rect",{x:xs(x),y,width:Math.max(1,xs(x+sg.v)-xs(x)),height:24,rx:2},s);fill(rc,sg.c);rc.addEventListener("pointermove",e=>showTip(`<b>${sg.n}</b><div class="r"><span>Energy</span><b>${sg.v.toFixed(2)} TWh</b></div>`,e.clientX,e.clientY));rc.addEventListener("pointerleave",hideTip);x+=sg.v})};
+ bar(m.t+4,[{n:"Hydro lost",v:r.hydro,c:"var(--c-hydro)"},{n:"Wind lost",v:r.wind,c:"var(--c-wind)"},{n:"Geothermal lost",v:r.geo,c:"var(--c-geo)"},{n:"Imports lost",v:r.imp,c:"var(--c-import)"}],"Supply lost");
+ bar(m.t+62,[{n:"Replaced by thermal",v:r.add,c:"var(--c-solar)"},{n:"Unserved",v:r.un,c:"var(--bad)"}],"Replacement");
+ const hx=xs(Math.min(r.head,mx));const l=S("line",{x1:hx,x2:hx,y1:m.t+52,y2:m.t+96,"stroke-dasharray":"3 3"},s);stroke(l,"var(--ink)",1.2);S("text",{x:hx,y:m.t+110,class:"tick","text-anchor":"middle"},s,"thermal headroom "+r.head.toFixed(2))}
+function stressStrip(r){const pill=$("#sPill");if(r.un<.005){pill.className="pill good";pill.textContent="● Covered"}else if(r.unp<3){pill.className="pill warn";pill.textContent="▲ Shortfall"}else{pill.className="pill bad";pill.textContent="▲ Serious shortfall"}
+ $("#sStrip").innerHTML=[["Supply lost",r.lost.toFixed(2),"TWh"],["From thermal",r.add.toFixed(2),"TWh"],["Unserved",r.un.toFixed(2),"TWh"],["Extra CO₂",r.co2.toFixed(2),"Mt"]].map(c=>`<div><div class="cap">${c[0]}</div><div class="big num">${c[1]}<small>${c[2]}</small></div></div>`).join("");$("#thFleet").textContent=`${ST.thermalGW} GW, ${(r.ceil).toFixed(2)} TWh ceiling, ${ST.thermal.toFixed(2)} TWh used in 2025`}
+/* Monte Carlo, seeded */
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const MC=(function(){const rnd=mulberry(20261012),N=20000,n=ST.devH.length,out=new Float32Array(N);for(let i=0;i<N;i++){const j=Math.floor(rnd()*n);out[i]=Math.max(0,-(ST.hydro*ST.devH[j]+ST.geo*ST.devG[j]))}return out})();
+function drawMC(){const head=Math.max(0,ST.thermalGW*8.76*stress.cf/100-ST.thermal),N=MC.length;let pA=0,pO=0;const bins=new Array(26).fill(0);for(let i=0;i<N;i++){const uA=MC[i]-head,uO=MC[i]+ST.imports-head;if(uA>0)pA++;if(uO>0){pO++;bins[Math.min(25,Math.ceil(uO/ST.demand*100/.5))]++}else bins[0]++}
+ $("#mcStrip").innerHTML=`<div><div class="cap">Shortfall chance, imports available</div><div class="big num" style="color:${pA?"var(--warn)":"var(--good)"}">${(pA/N*100).toFixed(0)}<small>%</small></div></div><div><div class="cap">Shortfall chance, imports out</div><div class="big num" style="color:${pO/N>.05?"var(--bad)":"var(--warn)"}">${(pO/N*100).toFixed(0)}<small>%</small></div></div>`;
+ const h=200,{s,w}=mount("mcHist",h),m={l:40,r:8,t:10,b:30,w,h},mx=nice(Math.max(...bins)/N*100,4),bw=(w-m.l-m.r)/26,ys=v=>m.t+(1-v/mx.max)*(h-m.t-m.b);mx.t.forEach(v=>{S("line",{x1:m.l,x2:w-m.r,y1:ys(v),y2:ys(v),class:"grid-l"},s);S("text",{x:m.l-6,y:ys(v)+3.5,class:"tick","text-anchor":"end"},s,v+"%")});
+ bins.forEach((c,i)=>{const v=c/N*100;if(v<=0)return;const r=S("rect",{x:m.l+i*bw+1,y:ys(v),width:Math.max(1,bw-2),height:ys(0)-ys(v)},s);fill(r,i===0?"var(--good)":"var(--bad)");r.style.opacity=i===0?".85":".75";r.addEventListener("pointermove",e=>showTip(`<b>${i===0?"Fully covered":((i-1)*.5).toFixed(1)+"–"+(i*.5).toFixed(1)+"% unserved"}</b><div class="r"><span>Share of draws</span><b>${v.toFixed(1)}%</b></div>`,e.clientX,e.clientY));r.addEventListener("pointerleave",hideTip)});
+ [0,5,10].forEach(v=>S("text",{x:m.l+Math.min(25,Math.ceil(v/.5))*bw+bw/2,y:h-14,class:"tick","text-anchor":"middle"},s,v===0?"0":v+"%"));S("text",{x:w-m.r,y:h-1,class:"tick","text-anchor":"end"},s,"unserved, % of demand →")}
+function stressAll(){const r=calc(stress);drawGauge(r);drawStressBars(r);stressStrip(r);drawMC()}
+
+/* ---------- capacity ---------- */
+const cap={path:"Base",year:2035,mix:[50,30,20],cf:[85,45,25],phase:false},TECH=[["Geothermal","--c-geo"],["Wind","--c-wind"],["Solar","--c-solar"]],CTL=[["m0","Geothermal share of new energy","%",0,100,5],["m1","Wind share","%",0,100,5],["m2","Solar share","%",0,100,5],["cf0","Geothermal capacity factor","%",60,95,1],["cf1","Wind capacity factor","%",25,60,1],["cf2","Solar capacity factor","%",15,32,1],["yr","Target year","",2026,2035,1]];
+function capCtl(){$("#capCtl").innerHTML=CTL.map(r=>`<div class="ctl"><label for="c_${r[0]}"><span>${r[1]}</span><b id="cv_${r[0]}"></b></label><input type="range" id="c_${r[0]}" min="${r[3]}" max="${r[4]}" step="${r[5]}"></div>`).join("");CTL.forEach(r=>{const el=$("#c_"+r[0]);el.value=r[0].startsWith("m")?cap.mix[+r[0][1]]:r[0].startsWith("cf")?cap.cf[+r[0][2]]:cap.year;el.oninput=e=>{const v=+e.target.value;if(r[0].startsWith("m"))cap.mix[+r[0][1]]=v;else if(r[0].startsWith("cf"))cap.cf[+r[0][2]]=v;else cap.year=v;capLabels();capAll()}});capLabels()}
+function capLabels(){const t=cap.mix.reduce((a,b)=>a+b,0)||1;CTL.forEach(r=>{$("#cv_"+r[0]).textContent=r[0].startsWith("m")?f0(cap.mix[+r[0][1]]/t*100)+"%":r[0].startsWith("cf")?cap.cf[+r[0][2]]+"%":cap.year})}
+function capCalc(path,year){const d=CAP.paths[path][year-2026],gap=d-CAP.base,extra=cap.phase?Math.max(0,CAP.imports-.05*d)+Math.max(0,CAP.thermal-.05*d):0,need=gap+extra,t=cap.mix.reduce((a,b)=>a+b,0)||1,sh=cap.mix.map(v=>v/t),gw=sh.map((s,i)=>need*s/(8.76*cap.cf[i]/100));return{d,gap,extra,need,gw,sh,total:gw.reduce((a,b)=>a+b,0),perYear:need/(year-2025)}}
+function capAll(){const r=capCalc(cap.path,cap.year);$("#capStrip").innerHTML=[["Demand "+cap.year,f1(r.d),"TWh"],["New supply needed",f1(r.need),"TWh"],["New capacity",f1(r.total),"GW"],["Build pace vs 2015–25",(r.perYear/CAP.histPace1525).toFixed(1),"×"]].map(c=>`<div><div class="cap">${c[0]}</div><div class="big num">${c[1]}<small>${c[2]}</small></div></div>`).join("");
+ $("#capRows").innerHTML=rowsHTML(TECH.map((t,i)=>({name:t[0],v:r.gw[i],c:`var(${t[1]})`})),Math.max(.5,...r.gw)*1.15,v=>v.toFixed(2)+" GW");
+ const h=Math.max(250,Math.min(320,innerWidth*.34)),{s,w}=mount("capLine",h),m={l:40,r:48,t:12,b:28,w,h},xs=v=>m.l+(v-2025)/10*(w-m.l-m.r),paths=["Low","Base","High"].map(p=>({p,v:CAP.years.map((y,i)=>[y,Math.max(0,CAP.paths[p][i]-CAP.base)])})),mxv=nice(Math.max(...paths[2].v.map(x=>x[1]),CAP.histPace1525*10)*1.05,4),ys=v=>m.t+(1-v/mxv.max)*(h-m.t-m.b);
+ axes(s,m,xs,ys,{yt:mxv.t,xt:[2025,2027,2029,2031,2033,2035]});S("text",{x:m.l,y:9,class:"tick"},s,"cumulative new supply, TWh");
+ const ln=(pts,col,wd,dash,op)=>{let d="";pts.forEach((p,i)=>d+=(i?"L":"M")+xs(p[0]).toFixed(1)+" "+ys(p[1]).toFixed(1));const e=S("path",{d,fill:"none"},s);stroke(e,col,wd);if(dash)e.setAttribute("stroke-dasharray",dash);e.style.opacity=op;return e};
+ paths.forEach(pp=>ln([[2025,0],...pp.v],pp.p===cap.path?"var(--ember)":"var(--c-fossil)",pp.p===cap.path?3:1.2,null,pp.p===cap.path?1:.5));
+ ln([[2025,0],[2035,CAP.histPace1525*10]],"var(--ink)",1.8,"5 4",1);S("text",{x:xs(2035)+6,y:ys(CAP.histPace1525*10)+4,class:"lbl"},s,"pace");
+ const hx=xs(cap.year);S("line",{x1:hx,x2:hx,y1:m.t,y2:h-m.b},s).style.stroke="var(--line-2)";
+ hover(s,m,px=>clamp(Math.round(2025+(px-m.l)/(w-m.l-m.r)*10),2026,2035),yr=>({x:xs(yr),html:`<b>${yr}</b>`+paths.map(p=>`<div class="r"><span>${p.p}</span><b>${f1(p.v[yr-2025][1])} TWh</b></div>`).join("")+`<div class="r"><span>2015–25 pace</span><b>${f1(CAP.histPace1525*(yr-2025))} TWh</b></div>`}));
+ $("#capLegend").innerHTML=`<span><i style="background:var(--ember)"></i>Selected path</span><span><i style="background:var(--c-fossil)"></i>Other paths</span><span><i style="background:var(--ink)"></i>If the last decade's pace of ${CAP.histPace1525.toFixed(2)} TWh a year continued</span>`}
+
+/* ---------- wiring ---------- */
+function wire(){mixLegend();mixShare();bench();fcTable();bt();fanLegend();secCtl();pillarRows();sCtl();capCtl();
+ $$("#scenSeg button").forEach(b=>b.onclick=()=>{fs.scen=b.dataset.s;$$("#scenSeg button").forEach(x=>x.setAttribute("aria-pressed",x===b));drawFan()});
+ $$("#hSeg button").forEach(b=>b.onclick=()=>{btH=+b.dataset.h;$$("#hSeg button").forEach(x=>x.setAttribute("aria-pressed",x===b));bt()});
+ $$("#capSeg button").forEach(b=>b.onclick=()=>{cap.path=b.dataset.s;$$("#capSeg button").forEach(x=>x.setAttribute("aria-pressed",x===b));capAll()});
+ $("#phase").onchange=e=>{cap.phase=e.target.checked;capAll()};
+ $("#peerSel").innerHTML=CT.filter(c=>c!=="Kenya").map(c=>`<option${c===sec.peer?" selected":""}>${c}</option>`).join("");$("#peerSel").onchange=e=>{sec.peer=e.target.value;ranking();drawTraj();drawRadar()};
+ $("#secYear").oninput=e=>{sec.year=+e.target.value;ranking();drawRadar()}}
+const drawers={overview:()=>{drawMix2();drawScatter()},forecast:drawFan,security:()=>{ranking();drawTraj();drawRadar();drawHist()},stress:stressAll,capacity:capAll,about:()=>{}};
+function show(v){if(!drawers[v])v="overview";$$(".view").forEach(s=>s.classList.toggle("on",s.id==="v-"+v));$$(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.view===v));hideTip();requestAnimationFrame(()=>drawers[v]());try{history.replaceState(null,"","#"+v)}catch(e){}window.scrollTo({top:0})}
+$$(".tab").forEach(t=>t.onclick=()=>show(t.dataset.view));
+const themeBtn=$("#themeBtn");themeBtn.onclick=()=>{const root=document.documentElement,cur=root.dataset.theme||(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"),nx=cur==="dark"?"light":"dark";root.dataset.theme=nx;try{localStorage.setItem("kgo-theme",nx)}catch(e){}const v=($(".tab[aria-selected=true]")||{dataset:{view:"overview"}}).dataset.view;requestAnimationFrame(()=>drawers[v]())};
+try{const t=localStorage.getItem("kgo-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}
+wire();let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(()=>{const v=($(".tab[aria-selected=true]")||{dataset:{view:"overview"}}).dataset.view;drawers[v]()},120)});
+show((location.hash||"#overview").slice(1));
+addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(drawers[v])show(v)});
+})();
+</script>
+
+</body>
+</html>
